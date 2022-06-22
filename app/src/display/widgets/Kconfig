@@ -17,7 +17,7 @@ config ZMK_WIDGET_BATTERY_STATUS
 
 config ZMK_WIDGET_OUTPUT_STATUS
     bool "Widget for keyboard output status icons"
-    # depends on BT && (!ZMK_SPLIT_BLE || ZMK_SPLIT_ROLE_CENTRAL)
+    depends on BT && (!ZMK_SPLIT_BLE || ZMK_SPLIT_ROLE_CENTRAL)
     default y if BT && (!ZMK_SPLIT_BLE || ZMK_SPLIT_ROLE_CENTRAL)
     select LVGL_USE_LABEL
 
