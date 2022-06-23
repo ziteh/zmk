@@ -78,6 +78,13 @@ config ZMK_DISPLAY_FULL_REFRESH_PERIOD
       Period in seconds for how often to completely refresh/redraw the whole screen.
       Most useful for e-ink/EPD displays that require occasional full redraws.
 
+config MYCHANGE_DISPLAY_UPDATE_MO_BEHAVIOR
+    bool "(Opional) flag controlling whether the temporary layer change should be updated on the layer status widget"
+    default y
+    depends on ZMK_DISPLAY
+    help
+      This is useful for EPD display due to the slow fresh rate
+
 rsource "widgets/Kconfig"
 
 endif
