@@ -80,7 +80,7 @@ static struct zmk_behavior_binding zmk_sensor_keymap[ZMK_KEYMAP_LAYERS_LEN]
 
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
 
-static inline int set_layer_state(uint8_t layer, bool state) {
+static inline int set_layer_state(uint8_t layer, bool state, bool flag_event) {
     if (layer >= ZMK_KEYMAP_LAYERS_LEN) {
         return -EINVAL;
     }
@@ -93,7 +93,7 @@ static inline int set_layer_state(uint8_t layer, bool state) {
     zmk_keymap_layers_state_t old_state = _zmk_keymap_layer_state;
     WRITE_BIT(_zmk_keymap_layer_state, layer, state);
     // Don't send state changes unless there was an actual change
-    if (old_state != _zmk_keymap_layer_state) {
+    if (flag_event && (old_state != _zmk_keymap_layer_state)) {
         LOG_DBG("layer_changed: layer %d state %d", layer, state);
         ZMK_EVENT_RAISE(create_layer_state_changed(layer, state));
     }
@@ -124,9 +124,13 @@ uint8_t zmk_keymap_highest_layer_active() {
     return zmk_keymap_layer_default();
 }
 
-int zmk_keymap_layer_activate(uint8_t layer) { return set_layer_state(layer, true); };
+int zmk_keymap_layer_activate(uint8_t layer) { return set_layer_state(layer, true, true); };
 
-int zmk_keymap_layer_deactivate(uint8_t layer) { return set_layer_state(layer, false); };
+int zmk_keymap_layer_deactivate(uint8_t layer) { return set_layer_state(layer, false, true); };
+
+int zmk_keymap_layer_activate_noevent(uint8_t layer) { return set_layer_state(layer, true, false); };
+
+int zmk_keymap_layer_deactivate_noevent(uint8_t layer) { return set_layer_state(layer, false, false); };
 
 int zmk_keymap_layer_toggle(uint8_t layer) {
     if (zmk_keymap_layer_active(layer)) {
