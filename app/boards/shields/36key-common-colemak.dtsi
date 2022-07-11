@@ -1,3 +1,7 @@
+#define DEFAULT 0
+#define QWERT   1
+#define NUM     2
+#define SYM     3
 
 &mt {
    flavor = "tap-preferred";
