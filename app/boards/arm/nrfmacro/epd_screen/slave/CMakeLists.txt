@@ -23,6 +23,10 @@ zephyr_library_sources(icons/stdlogo.c)
 endif()
 
 if (CONFIG_NRFMACRO_SCREEN_CUSTOM_LOGO)
-zephyr_library_sources(icons/customlogo.c)
+if(ZMK_CONFIG)
+  zephyr_library_sources(${ZMK_CONFIG}/icons/customlogo.c)
+else()
+  zephyr_library_sources(icons/customlogo.c)
+endif()
 endif()
 
