@@ -304,10 +304,14 @@ static int il0323_controller_init(const struct device *dev) {
     il0323_busy_wait(driver);
 
     /* Pannel settings, KW mode */
-    // scanning in from left -> right, up -> down
-    /* tmp[0] = IL0323_PSR_UD | IL0323_PSR_SHL | IL0323_PSR_SHD | IL0323_PSR_RST; */
+#if IS_ENABLED(CONFIG_NRFMACRO_EPD_ROTATE_180)
     // rotate the screen upside down by scanning in from right -> left, down -> up
     tmp[0] = IL0323_PSR_SHD | IL0323_PSR_RST;
+#else
+    // scanning in from left -> right, up -> down
+    tmp[0] = IL0323_PSR_UD | IL0323_PSR_SHL | IL0323_PSR_SHD | IL0323_PSR_RST;
+#endif
+
 #if EPD_PANEL_WIDTH == 80
 
 #if EPD_PANEL_HEIGHT == 128

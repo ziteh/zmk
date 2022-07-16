@@ -163,6 +163,9 @@ endif # NRFMACRO_OLED_DISPLAY
 
 ## epd display configuration
 if NRFMACRO_EPD_DISPLAY
+config NRFMACRO_EPD_ROTATE_180
+  bool "rotate the epd upside-down"
+
 config LVGL_HOR_RES_MAX
 	default 80
 
