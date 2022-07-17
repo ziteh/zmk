@@ -25,5 +25,9 @@ config ZMK_SPLIT
 config ZMK_USB
 	default y
 
+config NRFMACRO_MARKLOGO_NAME
+  string  "Source file name of the shield mark logo"
+  default "cornepro-marklogo.c"
+
 endif
 

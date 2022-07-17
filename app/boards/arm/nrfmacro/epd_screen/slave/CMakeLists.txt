@@ -14,8 +14,9 @@ zephyr_library_sources(status_screen.c)
 zephyr_library_sources_ifdef(CONFIG_CUSTOM_WIDGET_BATTERY_STATUS battery_status.c)
 zephyr_library_sources_ifdef(CONFIG_CUSTOM_WIDGET_PERIPHERAL_STATUS peripheral_status.c)
 
+add_compile_definitions(LV_LVGL_H_INCLUDE_SIMPLE)
 if (CONFIG_NRFMACRO_SCREEN_MARK_LOGO)
-zephyr_library_sources(icons/marklogo.c)
+zephyr_library_sources(icons/${CONFIG_NRFMACRO_MARKLOGO_NAME})
 endif()
 
 if (CONFIG_NRFMACRO_SCREEN_STANDARD_LOGO)
@@ -23,7 +24,6 @@ zephyr_library_sources(icons/stdlogo.c)
 endif()
 
 if (CONFIG_NRFMACRO_SCREEN_CUSTOM_LOGO)
-add_compile_definitions(LV_LVGL_H_INCLUDE_SIMPLE)
 if(ZMK_CONFIG)
   zephyr_library_sources(${ZMK_CONFIG}/icons/customlogo.c)
 else()
