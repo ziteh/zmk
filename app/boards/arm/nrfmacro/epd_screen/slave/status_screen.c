@@ -58,14 +58,14 @@ lv_obj_t *zmk_display_status_screen() {
     lv_obj_t * stdlogo_icon;
     stdlogo_icon = lv_img_create(screen, NULL);
     lv_img_set_src(stdlogo_icon, &stdlogo);
-    lv_obj_align(stdlogo_icon, NULL, LV_ALIGN_IN_BOTTOM_MID, 2, -28-CONFIG_NRFMACRO_SCREEN_BOTTOM_MARGIN);
+    lv_obj_align(stdlogo_icon, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -28-CONFIG_NRFMACRO_SCREEN_BOTTOM_MARGIN);
 #endif
     // 3. configurable personal logo, which can replace the product logo
 #if IS_ENABLED(CONFIG_NRFMACRO_SCREEN_CUSTOM_LOGO)
     lv_obj_t * customlogo_icon;
     customlogo_icon = lv_img_create(screen, NULL);
     lv_img_set_src(customlogo_icon, &customlogo);
-    lv_obj_align(customlogo_icon, NULL, LV_ALIGN_IN_BOTTOM_MID, 2, -28-CONFIG_NRFMACRO_SCREEN_BOTTOM_MARGIN);
+    lv_obj_align(customlogo_icon, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -28-CONFIG_NRFMACRO_SCREEN_BOTTOM_MARGIN);
 #endif
 
     lv_refr_now(NULL);
