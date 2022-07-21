@@ -86,6 +86,27 @@ config NRFMACRO_SCREEN_CUSTOM_LOGO
 
 endchoice
 
+# Customizing margin of the display screen
+config NRFMACRO_SCREEN_TOP_MARGIN
+  int "top margin of display screen in pixel"
+  depends on ZMK_DISPLAY
+  default 2
+
+config NRFMACRO_SCREEN_BOTTOM_MARGIN
+  int "bottom margin of display screen in pixel"
+  depends on ZMK_DISPLAY
+  default 2
+
+config NRFMACRO_SCREEN_LEFT_MARGIN
+  int "left margin of display screen in pixel"
+  depends on ZMK_DISPLAY
+  default 2
+
+config NRFMACRO_SCREEN_RIGHT_MARGIN
+  int "right margin of display screen in pixel"
+  depends on ZMK_DISPLAY
+  default 2
+
 # USB STACK setup
 if USB_DEVICE_STACK
 
