@@ -382,7 +382,7 @@ static int pmw33xx_init(const struct device *dev) {
         .bus_name = DT_INST_BUS_LABEL(n), .bus_init = pmw33xx_spi_init,                            \
         .bus_cfg = {.spi_cfg = PMW33XX_SPI_CFG(n)},                                                \
         .disable_rest = DT_INST_NODE_HAS_PROP(n, disable_rest),                                    \
-        COND_CODE_0(DT_INST_NODE_HAS_PROP(n, cpi), (0), (DT_INST_PROP(n, cpi)))                    \
+        .cpi = COND_CODE_0(DT_INST_NODE_HAS_PROP(n, cpi), (0), (DT_INST_PROP(n, cpi)))                    \
             COND_CODE_1(CONFIG_PMW33XX_TRIGGER,                                                    \
                         (, PMW33XX_GPIO_DT_SPEC_GET_BY_IDX(DT_DRV_INST(n), motswk_gpios, 0)), ())  \
     }
