@@ -9,31 +9,31 @@
 #define SCROLL_DIV_FACTOR 5
 
 
-/* test */ 
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
 // in ms
-#define MOUSE_UPDATE_INTERVAL_MIN 0.1
 static int64_t last_update_time = 0;
 static int64_t current_update_time = 0;
-static int64_t   acc_interval = 0;
-static int32_t acc_dx=0, acc_dy=0;
-/*******/
+#endif
+
+static struct sensor_value dx, dy;
 
 const struct device *trackball = DEVICE_DT_GET(DT_INST(0, pixart_pmw33xx));
 
 LOG_MODULE_REGISTER(trackball, CONFIG_SENSOR_LOG_LEVEL);
 
 static void handle_trackball(const struct device *dev, const struct sensor_trigger *trig) {
-    /* test */
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
     current_update_time = k_uptime_get();
-    acc_interval += (current_update_time - last_update_time);
-    /*****/
+#endif
 
+    // fetch latest position from sensor
     int ret = sensor_sample_fetch(dev);
     if (ret < 0) {
         LOG_ERR("fetch: %d", ret);
         return;
     }
-    struct sensor_value dx, dy;
+
+    // get the x, y delta
     ret = sensor_channel_get(dev, SENSOR_CHAN_POS_DX, &dx);
     if (ret < 0) {
         LOG_ERR("get dx: %d", ret);
@@ -46,37 +46,27 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
     }
     LOG_DBG("trackball %d %d", dx.val1, dy.val1);
 
-    /* test */
-    acc_dx += dx.val1;
-    acc_dy += dy.val1;
+    // update x, y position
+    zmk_hid_mouse_movement_set(0, 0);
+    zmk_hid_mouse_scroll_set(0, 0);
 
-    LOG_DBG("interval: %lld %lld", (current_update_time-last_update_time), acc_interval);
-
-    if(acc_interval >= MOUSE_UPDATE_INTERVAL_MIN) {
-      zmk_hid_mouse_movement_set(0, 0);
-      zmk_hid_mouse_scroll_set(0, 0);
-
-      const uint8_t layer = zmk_keymap_highest_layer_active();
-      static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
-      if (layer == 2) {   // lower
-        const int16_t total_hor = dx.val1 + scroll_hor_rem, total_ver = -(dy.val1 + scroll_ver_rem);
-        scroll_hor_rem = total_hor % SCROLL_DIV_FACTOR;
-        scroll_ver_rem = total_ver % SCROLL_DIV_FACTOR;
-        zmk_hid_mouse_scroll_update(total_hor / SCROLL_DIV_FACTOR, total_ver / SCROLL_DIV_FACTOR);
-      } else {
-        zmk_hid_mouse_movement_update(CLAMP(dx.val1, INT8_MIN, INT8_MAX), CLAMP(dy.val1, INT8_MIN, INT8_MAX));
-      }
-      zmk_endpoints_send_mouse_report();
+    const uint8_t layer = zmk_keymap_highest_layer_active();
+    static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
+    if (layer == 2) {   // lower
+      const int16_t total_hor = dx.val1 + scroll_hor_rem, total_ver = -(dy.val1 + scroll_ver_rem);
+      scroll_hor_rem = total_hor % SCROLL_DIV_FACTOR;
+      scroll_ver_rem = total_ver % SCROLL_DIV_FACTOR;
+      zmk_hid_mouse_scroll_update(total_hor / SCROLL_DIV_FACTOR, total_ver / SCROLL_DIV_FACTOR);
+    } else {
+      zmk_hid_mouse_movement_update(CLAMP(dx.val1, INT8_MIN, INT8_MAX), CLAMP(dy.val1, INT8_MIN, INT8_MAX));
+    }
+    zmk_endpoints_send_mouse_report();
       
       /* test */ 
-      LOG_DBG("update interval: %lld %lld ; trackball: %d %d", (current_update_time-last_update_time), acc_interval, acc_dx, acc_dy);
-
-      acc_dx = 0;
-      acc_dy = 0;
-      acc_interval = 0;
-    }
-
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
+    LOG_DBG("update interval: %lld ; trackball: %d %d", (current_update_time-last_update_time), dx.val1, dy.val1);
     last_update_time = current_update_time;
+#endif
 }
 
 static int trackball_init() {
