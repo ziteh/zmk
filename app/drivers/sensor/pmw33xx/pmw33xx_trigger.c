@@ -20,7 +20,6 @@
 LOG_MODULE_DECLARE(PMW33XX, CONFIG_SENSOR_LOG_LEVEL);
 
 static inline void setup_int(const struct device *dev, bool enable) {
-    struct pmw33xx_data *data = dev->data;
     const struct pmw33xx_config *cfg = dev->config;
 
     if (gpio_pin_interrupt_configure(cfg->motswk_spec.port, cfg->motswk_spec.pin,

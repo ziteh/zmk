@@ -11,7 +11,7 @@
 
 /* test */ 
 // in ms
-#define MOUSE_UPDATE_INTERVAL_MIN 0.5
+#define MOUSE_UPDATE_INTERVAL_MIN 0.1
 static int64_t last_update_time = 0;
 static int64_t current_update_time = 0;
 static int64_t   acc_interval = 0;
@@ -50,7 +50,7 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
     acc_dx += dx.val1;
     acc_dy += dy.val1;
 
-    /* LOG_DBG("interval: %l %l", (current_update_time-last_update_time), acc_interval); */
+    LOG_DBG("interval: %lld %lld", (current_update_time-last_update_time), acc_interval);
 
     if(acc_interval >= MOUSE_UPDATE_INTERVAL_MIN) {
       zmk_hid_mouse_movement_set(0, 0);
@@ -69,7 +69,8 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
       zmk_endpoints_send_mouse_report();
       
       /* test */ 
-      /* LOG_DBG("update interval: %l %l", (current_update_time-last_update_time), acc_interval); */
+      LOG_DBG("update interval: %lld %lld ; trackball: %d %d", (current_update_time-last_update_time), acc_interval, acc_dx, acc_dy);
+
       acc_dx = 0;
       acc_dy = 0;
       acc_interval = 0;
