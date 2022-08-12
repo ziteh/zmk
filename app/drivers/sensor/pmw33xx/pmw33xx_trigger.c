@@ -23,9 +23,8 @@ static inline void setup_int(const struct device *dev, bool enable) {
     struct pmw33xx_data *data = dev->data;
     const struct pmw33xx_config *cfg = dev->config;
 
-    gpio_pin_configure(cfg->motswk_spec.port, cfg->motswk_spec.pin, cfg->motswk_spec.dt_flags);
     if (gpio_pin_interrupt_configure(cfg->motswk_spec.port, cfg->motswk_spec.pin,
-                                     enable ? GPIO_INT_EDGE_TO_ACTIVE : GPIO_INT_DISABLE)) {
+                                     enable ? GPIO_INT_LEVEL_ACTIVE : GPIO_INT_DISABLE)) {
         LOG_WRN("Unable to set MOTSWK GPIO interrupt");
     }
 }
@@ -104,6 +103,7 @@ int pmw33xx_init_interrupt(const struct device *dev) {
     drv_data->dev = dev;
     /* setup gpio interrupt */
 
+    gpio_pin_configure(drv_cfg->motswk_spec.port, drv_cfg->motswk_spec.pin, GPIO_INPUT | drv_cfg->motswk_spec.dt_flags);
     gpio_init_callback(&drv_data->motswk_gpio_cb, pmw33xx_motswk_gpio_callback,
                        BIT(drv_cfg->motswk_spec.pin));
 

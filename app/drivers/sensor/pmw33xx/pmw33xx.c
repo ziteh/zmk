@@ -74,7 +74,8 @@ static int pmw33xx_access(const struct device *dev, const uint8_t reg, uint8_t *
     pmw33xx_cs_select(cs_gpio_cfg, 0);
 
     int err = spi_write(data->bus, spi_cfg, &tx);
-    k_sleep(K_USEC(120)); // Tsrad
+    /* k_sleep(K_USEC(120)); // Tsrad */
+    k_sleep(K_USEC(180)); // Tsrad
     if (err) {
         pmw33xx_cs_select(cs_gpio_cfg, 1);
         return err;
@@ -85,7 +86,8 @@ static int pmw33xx_access(const struct device *dev, const uint8_t reg, uint8_t *
     else
         err = spi_read(data->bus, spi_cfg, &rx);
     pmw33xx_cs_select(cs_gpio_cfg, 1);
-    k_sleep(K_USEC(160));
+    /* k_sleep(K_USEC(160)); */
+    k_sleep(K_USEC(180));
     if ((reg & PMW33XX_WR_MASK) == 0 && value != NULL)
         *value = result[0];
     return err;
@@ -271,6 +273,8 @@ static int pmw33xx_set_cpi(const struct device *dev, uint16_t cpi) {
 static int pmw33xx_init_chip(const struct device *dev) {
     const struct pmw33xx_config *const config = dev->config;
     const struct pmw33xx_gpio_dt_spec *cs_gpio_cfg = &config->bus_cfg.spi_cfg->cs_spec;
+
+    // power reset
     pmw33xx_cs_select(cs_gpio_cfg, 1);
     k_sleep(K_MSEC(1));
 
@@ -279,6 +283,9 @@ static int pmw33xx_init_chip(const struct device *dev) {
         LOG_ERR("could not reset %d", err);
         return -EIO;
     }
+
+    // confirm pid
+    k_sleep(K_MSEC(50));
     uint8_t pid = 0x0;
     err = pmw33xx_read_reg(dev, PMW33XX_REG_PID, &pid);
     if (err) {
@@ -289,14 +296,19 @@ static int pmw33xx_init_chip(const struct device *dev) {
         LOG_ERR("pid does not match expected: got (%x), expected(%x)", pid, PMW33XX_PID);
         return -EIO;
     }
+
+    // enable rest
     pmw33xx_write_reg(dev, PMW33XX_REG_CONFIG2,
                       config->disable_rest ? 0x00 : PMW33XX_RESTEN); // set rest enable
 
+    // update fireware
     err = pmw33xx_write_srom(dev);
     if (err) {
         LOG_ERR("could not upload srom %d", err);
         return -EIO;
     }
+
+    // confirm firmware update
     uint8_t srom_run = 0x0;
     err = pmw33xx_read_reg(dev, PMW33XX_REG_OBSERVATION, &srom_run);
     if (err) {
@@ -319,10 +331,12 @@ static int pmw33xx_init_chip(const struct device *dev) {
         return -EIO;
     }
 
+    // enbale motion burst and discard initial data
     pmw33xx_write_reg(dev, PMW33XX_REG_BURST, 0x01);
     struct pmw33xx_motion_burst val;
     pmw33xx_read_motion_burst(dev, &val); // read and throwout initial motion data
 
+    // set cpi
     if (config->cpi > PMW33XX_CPI_MIN && config->cpi < PMW33XX_CPI_MAX)
         return pmw33xx_set_cpi(dev, config->cpi);
     return 0;
@@ -364,7 +378,7 @@ static int pmw33xx_init(const struct device *dev) {
             {                                                                                      \
                 .frequency = DT_INST_PROP(n, spi_max_frequency),                                   \
                 .operation =                                                                       \
-                    (SPI_WORD_SET(8) | SPI_OP_MODE_MASTER | SPI_MODE_CPOL | SPI_MODE_CPHA),        \
+                (SPI_WORD_SET(8) | SPI_TRANSFER_MSB | SPI_OP_MODE_MASTER | SPI_MODE_CPOL | SPI_MODE_CPHA), \
                 .slave = DT_INST_REG_ADDR(n),                                                      \
             },                                                                                     \
         .cs_spec = PMW33XX_GPIO_DT_SPEC_GET_BY_IDX(DT_DRV_INST(n), cs_gpios, 0),                   \
