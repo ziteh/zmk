@@ -202,6 +202,6 @@ nrfmacro_i2c: &i2c1 {};
         cs-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
         motswk-gpios = <&gpio1 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
         spi-max-frequency = <2000000>;
-        cpi = <600>;
+        cpi = <400>;
     };
 };

@@ -45,9 +45,9 @@
 #define PMW33XX_REG_SROM_BURST 0x62
 
 /* SROM CMDs */
-#define PMW33XX_SROM_CRC_CMD 0x15
-#define PMW33XX_SROM_DWNLD_CMD 0x1D
-#define PMW33XX_SROM_DWNLD_START_CMD 0x18
+#define PMW33XX_SROM_CRC_CMD 0x15 // self-test
+#define PMW33XX_SROM_DWNLD_CMD 0x1D // init downlaod
+#define PMW33XX_SROM_DWNLD_START_CMD 0x18 // start download
 
 /* CPI Registers */
 #define PMW33XX_3360_REG_CPI 0x0F

@@ -115,10 +115,18 @@ static int pmw33xx_write_srom(const struct device *dev) {
         .count = 1,
     };
 
+    // 1. disable rest
+    pmw33xx_write_reg(dev, PMW33XX_REG_CONFIG2, 0x00);
+
+    // 2. downlaod init cmd
     pmw33xx_write_reg(dev, PMW33XX_REG_SROM_EN, PMW33XX_SROM_DWNLD_CMD);
+
     k_sleep(K_USEC(15));
+
+    // 3. download start cmd
     pmw33xx_write_reg(dev, PMW33XX_REG_SROM_EN, PMW33XX_SROM_DWNLD_START_CMD);
 
+    // 4. transmit the srom firmware
     pmw33xx_cs_select(cs_gpio_cfg, 0);
 
     int err = spi_write(data->bus, spi_cfg, &tx);
@@ -140,6 +148,8 @@ static int pmw33xx_write_srom(const struct device *dev) {
     }
 
     pmw33xx_cs_select(cs_gpio_cfg, 1);
+
+    // 5. finish and exit
     k_sleep(K_MSEC(2)); // Tbexit
     return err;
 }
@@ -274,18 +284,55 @@ static int pmw33xx_init_chip(const struct device *dev) {
     const struct pmw33xx_config *const config = dev->config;
     const struct pmw33xx_gpio_dt_spec *cs_gpio_cfg = &config->bus_cfg.spi_cfg->cs_spec;
 
-    // power reset
+    // reset spi port
     pmw33xx_cs_select(cs_gpio_cfg, 1);
+    pmw33xx_cs_select(cs_gpio_cfg, 0);
     k_sleep(K_MSEC(1));
 
+    // power reset
     int err = pmw33xx_write_reg(dev, PMW33XX_REG_PWR_UP_RST, PMW33XX_RESET_CMD);
     if (err) {
         LOG_ERR("could not reset %d", err);
         return -EIO;
     }
+    k_sleep(K_MSEC(50));
+
+    // clear motion data
+    struct pmw33xx_motion_burst val;
+    pmw33xx_read_motion_burst(dev, &val); // read and throwout initial motion data
+
+    // update fireware
+    err = pmw33xx_write_srom(dev);
+    if (err) {
+        LOG_ERR("could not upload srom %d", err);
+        return -EIO;
+    }
+
+    // confirm srom running status
+    uint8_t srom_run = 0x0;
+    err = pmw33xx_read_reg(dev, PMW33XX_REG_OBSERVATION, &srom_run);
+    if (err) {
+        LOG_ERR("could not check srom status %d", err);
+        return -EIO;
+    }
+    if (!(srom_run & PMW33XX_SROM_RUN)) {
+        LOG_ERR("srom status invalid %d", srom_run);
+        return -EIO;
+    }
+
+    // confirm firmware update by reading srom version, todo: comparison needed
+    uint8_t srom_id = 0x0;
+    err = pmw33xx_read_reg(dev, PMW33XX_REG_SROM_ID, &srom_id);
+    if (err) {
+        LOG_ERR("could not check srom id %d", err);
+        return -EIO;
+    }
+    if (!srom_id) {
+        LOG_ERR("srom id invalid %d", srom_id);
+        return -EIO;
+    }
 
     // confirm pid
-    k_sleep(K_MSEC(50));
     uint8_t pid = 0x0;
     err = pmw33xx_read_reg(dev, PMW33XX_REG_PID, &pid);
     if (err) {
@@ -301,44 +348,13 @@ static int pmw33xx_init_chip(const struct device *dev) {
     pmw33xx_write_reg(dev, PMW33XX_REG_CONFIG2,
                       config->disable_rest ? 0x00 : PMW33XX_RESTEN); // set rest enable
 
-    // update fireware
-    err = pmw33xx_write_srom(dev);
-    if (err) {
-        LOG_ERR("could not upload srom %d", err);
-        return -EIO;
-    }
-
-    // confirm firmware update
-    uint8_t srom_run = 0x0;
-    err = pmw33xx_read_reg(dev, PMW33XX_REG_OBSERVATION, &srom_run);
-    if (err) {
-        LOG_ERR("could not check srom status %d", err);
-        return -EIO;
-    }
-    if (!(srom_run & PMW33XX_SROM_RUN)) {
-        LOG_ERR("srom status invalid %d", srom_run);
-        return -EIO;
-    }
-
-    uint8_t srom_id = 0x0;
-    err = pmw33xx_read_reg(dev, PMW33XX_REG_SROM_ID, &srom_id);
-    if (err) {
-        LOG_ERR("could not check srom id %d", err);
-        return -EIO;
-    }
-    if (!srom_id) {
-        LOG_ERR("srom id invalid %d", srom_id);
-        return -EIO;
-    }
-
-    // enbale motion burst and discard initial data
+    // enbale motion burst
     pmw33xx_write_reg(dev, PMW33XX_REG_BURST, 0x01);
-    struct pmw33xx_motion_burst val;
-    pmw33xx_read_motion_burst(dev, &val); // read and throwout initial motion data
 
     // set cpi
     if (config->cpi > PMW33XX_CPI_MIN && config->cpi < PMW33XX_CPI_MAX)
         return pmw33xx_set_cpi(dev, config->cpi);
+
     return 0;
 }
 
