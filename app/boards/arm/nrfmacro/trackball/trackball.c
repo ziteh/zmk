@@ -7,12 +7,14 @@
 #include <dt-bindings/zmk/mouse.h>
 
 #define SCROLL_DIV_FACTOR 5
+#define SCROLL_LAYER_INDEX 4
 
 
-#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
-// in ms
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+// in us
 static int64_t last_update_time = 0;
 static int64_t current_update_time = 0;
+static int64_t update_duration = 0;
 #endif
 
 static struct sensor_value dx, dy;
@@ -21,9 +23,33 @@ const struct device *trackball = DEVICE_DT_GET(DT_INST(0, pixart_pmw33xx));
 
 LOG_MODULE_REGISTER(trackball, CONFIG_SENSOR_LOG_LEVEL);
 
+/* update and send report */
+static void trackball_update_handler(struct k_work *work) {
+  // remaining scroll from last update
+  static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
+
+  // update report with latest position
+  zmk_hid_mouse_movement_set(0, 0);
+  zmk_hid_mouse_scroll_set(0, 0);
+
+  const uint8_t layer = zmk_keymap_highest_layer_active();
+  if (layer == SCROLL_LAYER_INDEX) {   // lower
+    const int16_t total_hor = dx.val1 + scroll_hor_rem, total_ver = -(dy.val1 + scroll_ver_rem);
+    scroll_hor_rem = total_hor % SCROLL_DIV_FACTOR;
+    scroll_ver_rem = total_ver % SCROLL_DIV_FACTOR;
+    zmk_hid_mouse_scroll_update(total_hor / SCROLL_DIV_FACTOR, total_ver / SCROLL_DIV_FACTOR);
+  } else {
+    zmk_hid_mouse_movement_update(CLAMP(dx.val1, INT8_MIN, INT8_MAX), CLAMP(dy.val1, INT8_MIN, INT8_MAX));
+  }
+
+  // send the report to host
+  zmk_endpoints_send_mouse_report();
+}
+
+/* trigger handler, invoked by gpio interrupt */
 static void handle_trackball(const struct device *dev, const struct sensor_trigger *trig) {
-#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
-    current_update_time = k_uptime_get();
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+  current_update_time = k_ticks_to_us_floor64(k_uptime_ticks());
 #endif
 
     // fetch latest position from sensor
@@ -44,27 +70,16 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
         LOG_ERR("get dy: %d", ret);
         return;
     }
-    LOG_DBG("trackball %d %d", dx.val1, dy.val1);
 
-    // update x, y position
-    zmk_hid_mouse_movement_set(0, 0);
-    zmk_hid_mouse_scroll_set(0, 0);
+    // process the updated position and send to host
+    /* k_work_submit_to_queue(zmk_mouse_work_q(), &trackball_update); */
+    trackball_update_handler(NULL);
 
-    const uint8_t layer = zmk_keymap_highest_layer_active();
-    static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
-    if (layer == 2) {   // lower
-      const int16_t total_hor = dx.val1 + scroll_hor_rem, total_ver = -(dy.val1 + scroll_ver_rem);
-      scroll_hor_rem = total_hor % SCROLL_DIV_FACTOR;
-      scroll_ver_rem = total_ver % SCROLL_DIV_FACTOR;
-      zmk_hid_mouse_scroll_update(total_hor / SCROLL_DIV_FACTOR, total_ver / SCROLL_DIV_FACTOR);
-    } else {
-      zmk_hid_mouse_movement_update(CLAMP(dx.val1, INT8_MIN, INT8_MAX), CLAMP(dy.val1, INT8_MIN, INT8_MAX));
-    }
-    zmk_endpoints_send_mouse_report();
-      
-      /* test */ 
-#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
-    LOG_DBG("update interval: %lld ; trackball: %d %d", (current_update_time-last_update_time), dx.val1, dy.val1);
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+    update_duration = k_ticks_to_us_floor64(k_uptime_ticks()) - current_update_time;
+    LOG_DBG("interrupt interval (us): %lld ; update duration (us): %lld ; pos deltas: %d %d",\
+            (current_update_time-last_update_time), update_duration, dx.val1, dy.val1);
+
     last_update_time = current_update_time;
 #endif
 }
