@@ -24,6 +24,7 @@
 #include "pmw33xx.h"
 
 LOG_MODULE_REGISTER(PMW33XX, CONFIG_SENSOR_LOG_LEVEL);
+
 #define PMW33XX_PID COND_CODE_1(CONFIG_PMW33XX_3389, (PMW33XX_3389_PID), (PMW33XX_3360_PID))
 #define PMW33XX_CPI_MAX                                                                            \
     COND_CODE_1(CONFIG_PMW33XX_3389, (PMW33XX_3389_CPI_MAX), (PMW33XX_3360_CPI_MAX))
@@ -181,16 +182,18 @@ static int pmw33xx_read_motion_burst(const struct device *dev, struct pmw33xx_mo
     pmw33xx_cs_select(cs_gpio_cfg, 0);
 
     int err = spi_write(data->bus, spi_cfg, &tx);
-    k_sleep(K_USEC(35)); // tsrad motbr
     if (err) {
         pmw33xx_cs_select(cs_gpio_cfg, 1);
         return err;
     }
+
+    // wait needed
+    k_sleep(K_USEC(35)); // tsrad motbr
+
+    // start reading continuosly
     err = spi_read(data->bus, spi_cfg, &rx);
     pmw33xx_cs_select(cs_gpio_cfg, 1);
-#ifdef CONFIG_PMW33XX_TRIGGER
-    pmw33xx_reset_motion(dev);
-#endif
+
     return err;
 }
 
@@ -198,6 +201,32 @@ static int pmw33xx_read_motion_burst(const struct device *dev, struct pmw33xx_mo
 void pmw33xx_reset_motion(const struct device *dev) {
     // reset motswk interrupt
     pmw33xx_read_reg(dev, PMW33XX_REG_MOTION, NULL);
+}
+#endif
+
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+void pmw33xx_print_registers(const struct device *dev) {
+  LOG_DBG("print important regiter values of pmw33xx:");
+
+  uint8_t val;
+  int err;
+
+  // pid, rid
+  err = pmw33xx_read_reg(dev, PMW33XX_REG_PID, &val);
+  if (err) {
+    LOG_ERR("couldn't read register 0x%x", PMW33XX_REG_PID);
+  }
+  else {
+    LOG_DBG("pmw33xx pid: 0x%x", val);
+  }
+
+  err = pmw33xx_read_reg(dev, PMW33XX_REG_REV_ID, &val);
+  if (err) {
+    LOG_ERR("couldn't read register 0x%x", PMW33XX_REG_REV_ID);
+  }
+  else {
+    LOG_DBG("pmw33xx vid: 0x%x", val);
+  }
 }
 #endif
 
@@ -348,7 +377,12 @@ static int pmw33xx_init_chip(const struct device *dev) {
     pmw33xx_write_reg(dev, PMW33XX_REG_CONFIG2,
                       config->disable_rest ? 0x00 : PMW33XX_RESTEN); // set rest enable
 
-    // enbale motion burst
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+    pmw33xx_print_registers(dev);
+#endif
+
+    // enbale motion burst by writing something into motion_burst register, only needed once
+    // WARNING: no regiter reading other than position regiters after this setup
     pmw33xx_write_reg(dev, PMW33XX_REG_BURST, 0x01);
 
     // set cpi
@@ -374,6 +408,7 @@ static int pmw33xx_init(const struct device *dev) {
         LOG_DBG("failed to initialize chip");
         return -EIO;
     }
+
 
 #ifdef CONFIG_PMW33XX_TRIGGER
     if (pmw33xx_init_interrupt(dev) < 0) {

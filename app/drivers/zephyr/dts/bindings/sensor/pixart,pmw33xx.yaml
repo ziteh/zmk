@@ -26,3 +26,7 @@ properties:
     type: boolean
     description: disables mouse rest mode, will decrease battery life
     required: false
+  scroll-layer:
+    type: int
+    description: the momentary layer used to modifiy move to scroll
+    required: false
