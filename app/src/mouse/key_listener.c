@@ -25,6 +25,17 @@ static struct mouse_config move_config = (struct mouse_config){0};
 static struct mouse_config scroll_config = (struct mouse_config){0};
 static int64_t start_time = 0;
 
+
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
+// in us
+static int64_t last_update_time = 0;
+static int64_t current_update_time = 0;
+static int64_t update_duration = 0;
+static int64_t send_report_time = 0;
+static int64_t idle_interval = 0;
+static int64_t time_buffer = 0;
+#endif
+
 bool equals(const struct mouse_config *one, const struct mouse_config *other) {
     return one->delay_ms == other->delay_ms &&
            one->time_to_max_speed_ms == other->time_to_max_speed_ms &&
@@ -47,12 +58,33 @@ void mouse_clear_cb(struct k_timer *dummy) {
 }
 
 static void mouse_tick_timer_handler(struct k_work *work) {
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
+  current_update_time = k_ticks_to_us_floor64(k_uptime_ticks());
+  idle_interval = current_update_time - time_buffer;
+#endif
+
     zmk_hid_mouse_movement_set(0, 0);
     zmk_hid_mouse_scroll_set(0, 0);
+
     LOG_DBG("Raising mouse tick event");
     ZMK_EVENT_RAISE(
         zmk_mouse_tick(move_speed, scroll_speed, move_config, scroll_config, &start_time));
+
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
+    send_report_time = k_ticks_to_us_floor64(k_uptime_ticks());
+#endif
+
     zmk_endpoints_send_mouse_report();
+
+#if IS_ENABLED(CONFIG_ZMK_USB_LOGGING)
+    time_buffer = k_ticks_to_us_floor64(k_uptime_ticks());
+    update_duration = time_buffer - current_update_time;
+    LOG_DBG("Interrupt duration: %lld ; update: %lld ; report: %lld ; idle: %lld", \
+            (current_update_time - last_update_time), update_duration, \
+            (time_buffer - send_report_time), idle_interval);
+
+    last_update_time = current_update_time;
+#endif
 }
 
 K_WORK_DEFINE(mouse_tick, &mouse_tick_timer_handler);

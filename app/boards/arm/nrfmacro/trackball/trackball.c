@@ -20,6 +20,8 @@ static int64_t last_update_time = 0;
 static int64_t current_update_time = 0;
 static int64_t update_duration = 0;
 static int64_t send_report_duration = 0;
+static int64_t idle_interval = 0;
+static int64_t time_buffer = 0;
 #endif
 
 static struct sensor_value dx, dy;
@@ -65,6 +67,7 @@ static int64_t trackball_update_handler(struct k_work *work) {
 static void handle_trackball(const struct device *dev, const struct sensor_trigger *trig) {
 #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
   current_update_time = k_ticks_to_us_floor64(k_uptime_ticks());
+  idle_interval = current_update_time - time_buffer;
 #endif
 
     // fetch latest position from sensor
@@ -88,12 +91,17 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
 
     // process the updated position and send to host
     /* k_work_submit_to_queue(zmk_mouse_work_q(), &trackball_update); */
+#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
     send_report_duration = trackball_update_handler(NULL);
+#else
+    trackball_update_handler(NULL);
+#endif
 
 #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
-    update_duration = k_ticks_to_us_floor64(k_uptime_ticks()) - current_update_time;
-    LOG_DBG("interrupt interval (us): %lld; pos deltas: %d %d",\
-            (current_update_time-last_update_time), dx.val1, dy.val1);
+    time_buffer = k_ticks_to_us_floor64(k_uptime_ticks());
+    update_duration = time_buffer - current_update_time;
+    LOG_DBG("interrupt interval (us): %lld ; idle: %lld ; pos deltas: %d %d",\
+            (current_update_time-last_update_time), idle_interval, dx.val1, dy.val1);
     LOG_DBG("handler duration (us): %lld ; fetch: %lld ; report: %lld", update_duration,\
             (update_duration - send_report_duration), send_report_duration);
 
