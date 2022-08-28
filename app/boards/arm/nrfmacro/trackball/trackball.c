@@ -14,16 +14,23 @@
                                        (DT_INST_PROP(0, scroll_layer)))
 
 
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
 // in us
-static int64_t last_update_time = 0;
-static int64_t current_update_time = 0;
-static int64_t update_duration = 0;
+static int64_t last_interrupt_time = 0;
+static int64_t current_interrupt_time = 0;
+static int64_t interrupt_interval = 0;
+static int64_t handler_duration = 0;
 static int64_t send_report_duration = 0;
 static int64_t idle_interval = 0;
 static int64_t time_buffer = 0;
-#endif
+/* #endif */
 
+// TEST: for controlling the update frq
+#define MIN_UPDATE_INTERVAL 4000 // in us
+static int64_t acc_interval = 0;
+static int acc_interrupt_count = 0;
+
+//
 static struct sensor_value dx, dy;
 
 const struct device *trackball = DEVICE_DT_GET(DT_DRV_INST(0));
@@ -32,9 +39,9 @@ LOG_MODULE_REGISTER(trackball, CONFIG_SENSOR_LOG_LEVEL);
 
 /* update and send report */
 static int64_t trackball_update_handler(struct k_work *work) {
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
   int64_t start_time = k_ticks_to_us_floor64(k_uptime_ticks());
-#endif
+/* #endif */
 
   // remaining scroll from last update
   static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
@@ -56,21 +63,28 @@ static int64_t trackball_update_handler(struct k_work *work) {
   // send the report to host
   zmk_endpoints_send_mouse_report();
 
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
   return start_time = k_ticks_to_us_floor64(k_uptime_ticks()) - start_time;
-#else
-  return 0;
-#endif
+/* #else */
+/*   return 0; */
+/* #endif */
 }
 
 /* trigger handler, invoked by gpio interrupt */
 static void handle_trackball(const struct device *dev, const struct sensor_trigger *trig) {
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
-  current_update_time = k_ticks_to_us_floor64(k_uptime_ticks());
-  idle_interval = current_update_time - time_buffer;
-#endif
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
+  current_interrupt_time = k_ticks_to_us_floor64(k_uptime_ticks());
+  interrupt_interval = current_interrupt_time - last_interrupt_time;
+  idle_interval = current_interrupt_time - time_buffer;
+/* #endif */
+
+  // TEST: control update frq
+  acc_interval += interrupt_interval;
+  acc_interrupt_count++;
+
 
     // fetch latest position from sensor
+  if(acc_interval > MIN_UPDATE_INTERVAL) {
     int ret = sensor_sample_fetch(dev);
     if (ret < 0) {
         LOG_ERR("fetch: %d", ret);
@@ -91,22 +105,28 @@ static void handle_trackball(const struct device *dev, const struct sensor_trigg
 
     // process the updated position and send to host
     /* k_work_submit_to_queue(zmk_mouse_work_q(), &trackball_update); */
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
     send_report_duration = trackball_update_handler(NULL);
-#else
-    trackball_update_handler(NULL);
-#endif
+/* #else */
+/*     trackball_update_handler(NULL); */
+/* #endif */
+    
+    LOG_INF("Update interval (us): %lld ; Nr of interrupts: %d ;  Position: %d %d",\
+            acc_interval, acc_interrupt_count, dx.val1, dy.val1);
+    LOG_INF("Send report time cost: %lld", send_report_duration);
 
-#if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG)
+    acc_interval = 0;
+    acc_interrupt_count = 0;
+  }
+
+/* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
     time_buffer = k_ticks_to_us_floor64(k_uptime_ticks());
-    update_duration = time_buffer - current_update_time;
-    LOG_DBG("interrupt interval (us): %lld ; idle: %lld ; pos deltas: %d %d",\
-            (current_update_time-last_update_time), idle_interval, dx.val1, dy.val1);
-    LOG_DBG("handler duration (us): %lld ; fetch: %lld ; report: %lld", update_duration,\
-            (update_duration - send_report_duration), send_report_duration);
+    handler_duration = time_buffer - current_interrupt_time;
+    /* LOG_DBG("interrupt interval (us): %lld ; idle: %lld ; handler time cost: %lld",\ */
+    /*         interrupt_interval, idle_interval, handler_duration); */
 
-    last_update_time = current_update_time;
-#endif
+    last_interrupt_time = current_interrupt_time;
+/* #endif */
 }
 
 static int trackball_init() {
