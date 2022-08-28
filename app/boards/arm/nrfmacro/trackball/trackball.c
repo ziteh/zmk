@@ -26,7 +26,7 @@ static int64_t time_buffer = 0;
 /* #endif */
 
 // TEST: for controlling the update frq
-#define MIN_UPDATE_INTERVAL 4000 // in us
+#define MIN_UPDATE_INTERVAL 12000 // in us
 static int64_t acc_interval = 0;
 static int acc_interrupt_count = 0;
 

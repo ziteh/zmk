@@ -316,7 +316,7 @@ static int pmw33xx_init_chip(const struct device *dev) {
     // reset spi port
     pmw33xx_cs_select(cs_gpio_cfg, 1);
     pmw33xx_cs_select(cs_gpio_cfg, 0);
-    k_sleep(K_MSEC(1));
+    /* k_sleep(K_MSEC(1)); */
 
     // power reset
     int err = pmw33xx_write_reg(dev, PMW33XX_REG_PWR_UP_RST, PMW33XX_RESET_CMD);
@@ -326,7 +326,8 @@ static int pmw33xx_init_chip(const struct device *dev) {
     }
     k_sleep(K_MSEC(50));
 
-    // clear motion data
+    // clear motion data (by reading motion registers from 0x02 to 0x06)
+    // use burst read or normal read
     struct pmw33xx_motion_burst val;
     pmw33xx_read_motion_burst(dev, &val); // read and throwout initial motion data
 

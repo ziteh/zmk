@@ -34,8 +34,10 @@ static void pmw33xx_motswk_gpio_callback(const struct device *dev, struct gpio_c
 
     LOG_DBG("");
 
+    // disable the interrput line
     setup_int(drv_data->dev, false);
 
+    // submit work to handler thread
 #if defined(CONFIG_PMW33XX_TRIGGER_OWN_THREAD)
     k_sem_give(&drv_data->gpio_sem);
 #elif defined(CONFIG_PMW33XX_TRIGGER_GLOBAL_THREAD)
@@ -91,7 +93,12 @@ int pmw33xx_trigger_set(const struct device *dev, const struct sensor_trigger *t
     setup_int(dev, true);
 
     // reset motion on int setup
+    // so that old position values can be overwritten by new movements
+    // this is needed because trigger_set is invoked after device init, thus the sensor
+    // already starts working when invoking trigger_set, which may have left-over positions
+    // the motion interrupt is not cleared according to the datasheet.
     pmw33xx_reset_motion(dev);
+    
     return 0;
 }
 
@@ -100,8 +107,8 @@ int pmw33xx_init_interrupt(const struct device *dev) {
     const struct pmw33xx_config *drv_cfg = dev->config;
 
     drv_data->dev = dev;
-    /* setup gpio interrupt */
 
+    /* setup isr (interrupt service roution) */
     gpio_pin_configure(drv_cfg->motswk_spec.port, drv_cfg->motswk_spec.pin, GPIO_INPUT | drv_cfg->motswk_spec.dt_flags);
     gpio_init_callback(&drv_data->motswk_gpio_cb, pmw33xx_motswk_gpio_callback,
                        BIT(drv_cfg->motswk_spec.pin));
@@ -112,6 +119,7 @@ int pmw33xx_init_interrupt(const struct device *dev) {
         return -EIO;
     }
 
+    // create the handler thread or work
 #if defined(CONFIG_PMW33XX_TRIGGER_OWN_THREAD)
     k_sem_init(&drv_data->gpio_sem, 0, UINT_MAX);
 
