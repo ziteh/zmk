@@ -120,6 +120,9 @@ struct pmw33xx_data {
     int16_t dx;
     int16_t dy;
 
+  struct k_timer poll_timer;
+  bool resume_interrupt;
+
     const struct pmw33xx_transfer_function *hw_tf;
 
 #ifdef CONFIG_PMW33XX_TRIGGER

@@ -52,7 +52,8 @@ static void pmw33xx_thread_cb(const struct device *dev) {
     drv_data->handler(dev, drv_data->trigger);
 
     // Enable once the wall/spam of interrupts is solved
-    setup_int(dev, true);
+    if(drv_data->resume_interrupt)
+      setup_int(dev, true);
 }
 
 #ifdef CONFIG_PMW33XX_TRIGGER_OWN_THREAD

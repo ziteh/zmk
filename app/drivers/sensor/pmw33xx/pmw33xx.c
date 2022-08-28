@@ -422,7 +422,9 @@ static int pmw33xx_init(const struct device *dev) {
 }
 
 #define PMW33XX_DATA_SPI(n)                                                                        \
-    { .cs_ctrl = {}, }
+    {                                                                                              \
+      .cs_ctrl = {},                                                    \
+.resume_interrupt = false,}
 
 #define PMW33XX_SPI_CFG(n)                                                                         \
     (&(struct pmw33xx_spi_cfg){                                                                    \
