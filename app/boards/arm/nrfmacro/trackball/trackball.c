@@ -29,8 +29,8 @@ static int64_t time_buffer = 0;
 /* #endif */
 
 static int  polling_count = 0;
-#define MAX_POLLING_COUNT 50
-#define TRACKBALL_POLL_INTERVAL 12 // in ms
+#define MAX_POLLING_COUNT 15
+#define TRACKBALL_POLL_INTERVAL 25 // in ms
 
 //
 static struct sensor_value dx, dy;
