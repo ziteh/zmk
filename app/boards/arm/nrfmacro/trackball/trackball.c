@@ -9,6 +9,9 @@
 #include <zmk/mouse.h>
 #include <dt-bindings/zmk/mouse.h>
 
+#include <zmk/event_manager.h>
+#include <zmk/events/endpoint_selection_changed.h>
+
 #include <pmw33xx/pmw33xx.h>
 
 #define SCROLL_DIV_FACTOR 5
@@ -29,8 +32,12 @@ static int64_t time_buffer = 0;
 /* #endif */
 
 static int  polling_count = 0;
-#define MAX_POLLING_COUNT 15
-#define TRACKBALL_POLL_INTERVAL 25 // in ms
+static int  max_poll_count = 0;
+static int  polling_interval = 0;
+#define BLE_POLL_COUNT 20
+#define BLE_POLL_INTERVAL 15 // in ms
+#define USB_POLL_COUNT 300
+#define USB_POLL_INTERVAL 1 // in ms
 
 //
 static struct sensor_value dx, dy;
@@ -133,7 +140,7 @@ K_TIMER_DEFINE(trackball_timer, trackball_timer_expiry, trackball_timer_stop);
 // timer expiry function
 void trackball_timer_expiry(struct k_timer *timer) {
   // check whether reaching the polling count limit    
-    if(polling_count < MAX_POLLING_COUNT) {
+    if(polling_count < max_poll_count) {
       // submit polling work to mouse work queue
       k_work_submit_to_queue(zmk_mouse_work_q(), &trackball_poll_work);
 
@@ -167,7 +174,7 @@ static void trackball_trigger_handler(const struct device *dev, const struct sen
   data->resume_interrupt = false;
 
   // start the polling timer
-  k_timer_start(&trackball_timer, K_NO_WAIT, K_MSEC(TRACKBALL_POLL_INTERVAL));
+  k_timer_start(&trackball_timer, K_NO_WAIT, K_MSEC(polling_interval));
 }
 
 static int trackball_init() {
@@ -180,7 +187,59 @@ static int trackball_init() {
         LOG_ERR("can't set trigger");
         return -EIO;
     };
-    return 0;
+
+    // init polling parameters
+    switch (zmk_endpoints_selected()) {
+#if IS_ENABLED(CONFIG_ZMK_USB)
+    case ZMK_ENDPOINT_USB: {
+      max_poll_count = USB_POLL_COUNT;
+      polling_interval = USB_POLL_INTERVAL;
+      return 0;
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_USB) */
+
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+    case ZMK_ENDPOINT_BLE: {
+      max_poll_count = BLE_POLL_COUNT;
+      polling_interval = BLE_POLL_INTERVAL;
+      return 0;
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_BLE) */
+    default:
+        LOG_ERR("Unsupported endpoint");
+        return -ENOTSUP;
+    }
 }
 
-SYS_INIT(trackball_init, APPLICATION, CONFIG_ZMK_KSCAN_INIT_PRIORITY);
+SYS_INIT(trackball_init, APPLICATION, CONFIG_SENSOR_INIT_PRIORITY);
+
+//////////////
+int trackball_endpoint_listener(const zmk_event_t *eh) {
+  LOG_INF("endpoint changing...");
+
+    // update polling parameters
+    switch (zmk_endpoints_selected()) {
+#if IS_ENABLED(CONFIG_ZMK_USB)
+    case ZMK_ENDPOINT_USB: {
+      max_poll_count = USB_POLL_COUNT;
+      polling_interval = USB_POLL_INTERVAL;
+      break;
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_USB) */
+
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+    case ZMK_ENDPOINT_BLE: {
+      max_poll_count = BLE_POLL_COUNT;
+      polling_interval = BLE_POLL_INTERVAL;
+      break;
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_BLE) */
+    default:
+        LOG_ERR("Unsupported endpoint");
+    }
+
+  return ZMK_EV_EVENT_BUBBLE;
+}
+
+ZMK_LISTENER(trackball, trackball_endpoint_listener)
+ZMK_SUBSCRIPTION(trackball, zmk_endpoint_selection_changed)
