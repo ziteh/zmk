@@ -19,6 +19,9 @@
 #define SCROLL_LAYER_INDEX COND_CODE_0(DT_INST_NODE_HAS_PROP(0, scroll_layer), (255), \
                                        (DT_INST_PROP(0, scroll_layer)))
 
+#define CPI_DIVIDOR COND_CODE_0(DT_INST_NODE_HAS_PROP(0, cpi_dividor), (1), \
+                                       (DT_INST_PROP(0, cpi_dividor)))
+
 
 /* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
 // in us
@@ -55,6 +58,8 @@ static int64_t trackball_update_handler(struct k_work *work) {
 
   // remaining scroll from last update
   static int8_t scroll_ver_rem = 0, scroll_hor_rem = 0;
+  dx.val1 = dx.val1/CPI_DIVIDOR;
+  dy.val1 = dy.val1/CPI_DIVIDOR;
 
   // update report with latest position
   zmk_hid_mouse_movement_set(0, 0);

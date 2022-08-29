@@ -22,6 +22,10 @@ properties:
     type: int
     description: mouse cpi
     required: false
+  cpi-dividor:
+    type: int
+    description: mouse cpi dividor
+    required: false
   disable-rest:
     type: boolean
     description: disables mouse rest mode, will decrease battery life
