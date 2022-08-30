@@ -174,6 +174,7 @@ void trackball_timer_stop(struct k_timer *timer) {
 // trigger handler
 static void trackball_trigger_handler(const struct device *dev, const struct sensor_trigger *trig) {
   struct pmw33xx_data *data = dev->data;
+  LOG_INF("I'm OLD trackball implementation");
 
   // do not resume motion interrupt
   data->resume_interrupt = false;
@@ -183,6 +184,7 @@ static void trackball_trigger_handler(const struct device *dev, const struct sen
 }
 
 static int trackball_init() {
+
     struct sensor_trigger trigger = {
         .type = SENSOR_TRIG_DATA_READY,
         .chan = SENSOR_CHAN_ALL,
