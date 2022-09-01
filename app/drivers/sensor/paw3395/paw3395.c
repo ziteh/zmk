@@ -13,7 +13,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 
-/* Timings defined by spec (in us) */
+/* Timings defined by spec (in us), they are used in SPI communication and MCU should not do other tasks during waiting, thus using k_busy_wain instead of k_sleep */
 // sub-us time is rounded to us, due to the limitation of k_busy_wait
 // see the discusssion here: https://github.com/zephyrproject-rtos/zephyr/issues/6498
 #define T_NCS_SCLK	1			/* 120 ns (rounded to 1us) */
@@ -113,7 +113,7 @@ extern const uint8_t paw3395_firmware_data[];
 // init is done in non-blocking manner (i.e., async), a delayable work is defined for this job
 // see paw3395_init and paw3395_async_init)
 
-// delay (ms) in between steps
+// delay (ms) in between steps, MCU is allowed to do other tasks
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 50, // required in spec
 	[ASYNC_INIT_STEP_LOAD_SETTING]    = 5,  // required in spec
