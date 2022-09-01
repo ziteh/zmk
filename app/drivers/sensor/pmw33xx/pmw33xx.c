@@ -76,7 +76,7 @@ static int pmw33xx_access(const struct device *dev, const uint8_t reg, uint8_t *
 
     int err = spi_write(data->bus, spi_cfg, &tx);
     /* k_sleep(K_USEC(120)); // Tsrad */
-    k_sleep(K_USEC(180)); // Tsrad
+    k_busy_wait(180); // Tsrad
     if (err) {
         pmw33xx_cs_select(cs_gpio_cfg, 1);
         return err;
@@ -88,7 +88,7 @@ static int pmw33xx_access(const struct device *dev, const uint8_t reg, uint8_t *
         err = spi_read(data->bus, spi_cfg, &rx);
     pmw33xx_cs_select(cs_gpio_cfg, 1);
     /* k_sleep(K_USEC(160)); */
-    k_sleep(K_USEC(180));
+    k_busy_wait(180);
     if ((reg & PMW33XX_WR_MASK) == 0 && value != NULL)
         *value = result[0];
     return err;
@@ -122,7 +122,7 @@ static int pmw33xx_write_srom(const struct device *dev) {
     // 2. downlaod init cmd
     pmw33xx_write_reg(dev, PMW33XX_REG_SROM_EN, PMW33XX_SROM_DWNLD_CMD);
 
-    k_sleep(K_USEC(15));
+    k_busy_wait(15);
 
     // 3. download start cmd
     pmw33xx_write_reg(dev, PMW33XX_REG_SROM_EN, PMW33XX_SROM_DWNLD_START_CMD);
@@ -132,7 +132,7 @@ static int pmw33xx_write_srom(const struct device *dev) {
 
     int err = spi_write(data->bus, spi_cfg, &tx);
 
-    k_sleep(K_USEC(15));
+    k_busy_wait(15);
     if (err) {
         pmw33xx_cs_select(cs_gpio_cfg, 1);
         return err;
@@ -141,7 +141,7 @@ static int pmw33xx_write_srom(const struct device *dev) {
     for (uint16_t i = 0; i < sizeof(SROM); i++) {
         access[0] = SROM[i];
         err = spi_write(data->bus, spi_cfg, &tx);
-        k_sleep(K_USEC(15));
+        k_busy_wait(15);
         if (err) {
             pmw33xx_cs_select(cs_gpio_cfg, 1);
             return err;
@@ -151,7 +151,7 @@ static int pmw33xx_write_srom(const struct device *dev) {
     pmw33xx_cs_select(cs_gpio_cfg, 1);
 
     // 5. finish and exit
-    k_sleep(K_MSEC(2)); // Tbexit
+    k_busy_wait(2000); // Tbexit
     return err;
 }
 
@@ -188,7 +188,7 @@ static int pmw33xx_read_motion_burst(const struct device *dev, struct pmw33xx_mo
     }
 
     // wait needed
-    k_sleep(K_USEC(35)); // tsrad motbr
+    k_busy_wait(35); // tsrad motbr
 
     // start reading continuosly
     err = spi_read(data->bus, spi_cfg, &rx);
@@ -316,7 +316,7 @@ static int pmw33xx_init_chip(const struct device *dev) {
     // reset spi port
     pmw33xx_cs_select(cs_gpio_cfg, 1);
     pmw33xx_cs_select(cs_gpio_cfg, 0);
-    /* k_sleep(K_MSEC(1)); */
+    k_sleep(K_MSEC(1));
 
     // power reset
     int err = pmw33xx_write_reg(dev, PMW33XX_REG_PWR_UP_RST, PMW33XX_RESET_CMD);
