@@ -1,0 +1,75 @@
+# Sensor data simulator
+#
+# Copyright (c) 2019 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menuconfig PAW3395
+	bool "PAW3395 mouse optical sensor"
+	help
+	  Enable PAW3395 mouse optical sensor.
+
+if PAW3395
+
+config PAW3395_CPI
+	int "PAW3395's default CPI"
+	default 1600
+	range 100 12000
+	help
+	  Default CPI value.
+
+config PAW3395_CPI_DIVIDOR
+	int "PAW3395's default CPI dividor"
+	default 4
+	range 1 12
+	help
+	  Default CPI dividor value.
+
+config PAW3395_RUN_DOWNSHIFT_TIME_MS
+	int "PAW3395's default RUN mode downshift time"
+	default 500
+	range 10 2550
+	help
+	  Default RUN mode downshift down time in milliseconds.
+	  Time after which sensor goes from RUN to REST1 mode.
+
+config PAW3395_REST1_DOWNSHIFT_TIME_MS
+	int "PAW3395's default REST1 mode downshift time"
+	default 9220
+	range 320 81600
+	help
+	  Default REST1 mode downshift down time in milliseconds.
+	  Time after which sensor goes from REST1 to REST2 mode.
+
+config PAW3395_REST2_DOWNSHIFT_TIME_MS
+	int "PAW3395's default REST2 mode downshift time"
+	default 150000
+	range 3200 816000
+	help
+	  Default REST2 mode downshift down time in milliseconds.
+	  Time after which sensor goes from REST2 to REST3 mode.
+
+choice
+	prompt "Select PAW3395 sensor orientation"
+	default PAW3395_ORIENTATION_0
+
+config PAW3395_ORIENTATION_0
+	bool "PAW3395 not rotated"
+
+config PAW3395_ORIENTATION_90
+	bool "PAW3395 rotated 90 deg clockwise"
+
+config PAW3395_ORIENTATION_180
+	bool "PAW3395 rotated 180 deg clockwise"
+
+config PAW3395_ORIENTATION_270
+	bool "PAW3395 rotated 270 deg clockwise"
+
+endchoice
+
+module = PAW3395
+module-str = PAW3395
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif #PAW3395
