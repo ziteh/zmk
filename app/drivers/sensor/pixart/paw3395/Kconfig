@@ -56,7 +56,6 @@ config PAW3395_REST1_SAMPLE_TIME_MS
 	range 1 255
 	help
 	  Default REST1 mode sample period in millisecond.
-    Smaller value means less power consumption.
 
 config PAW3395_REST2_SAMPLE_TIME_MS
 	int "PAW3395's sample time in REST2 stage"
@@ -64,7 +63,6 @@ config PAW3395_REST2_SAMPLE_TIME_MS
 	range 4 1020
 	help
 	  Default REST2 mode sample period in millisecond.
-    Smaller value means less power consumption.
 
 config PAW3395_REST3_SAMPLE_TIME_MS
 	int "PAW3395's sample time in REST3 stage"
@@ -72,7 +70,6 @@ config PAW3395_REST3_SAMPLE_TIME_MS
 	range 8 2040
 	help
 	  Default REST2 mode sample period in millisecond.
-    Smaller value means less power consumption.
 
 config PAW3395_RUN_DOWNSHIFT_TIME_MS
 	int "PAW3395's default RUN mode downshift time"

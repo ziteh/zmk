@@ -4,5 +4,6 @@
 rsource "battery/Kconfig"
 rsource "ec11/Kconfig"
 rsource "pmw33xx/Kconfig"
-rsource "pmw3360/Kconfig"
+rsource "pixart/pmw3360/Kconfig"
+rsource "pixart/paw3395/Kconfig"
 rsource "cirque_trackpad/Kconfig"

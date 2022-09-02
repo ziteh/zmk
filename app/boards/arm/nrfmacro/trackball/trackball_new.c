@@ -1,8 +1,12 @@
+#ifdef CONFIG_PMW3360
 #define DT_DRV_COMPAT pixart_pmw3360
+#include <pixart/pmw3360/pmw3360.h>
+#elif defined(CONFIG_PAW3395)
+#define DT_DRV_COMPAT pixart_paw3395
+#include <pixart/paw3395/paw3395.h>
+#endif
 
-#include <drivers/sensor.h>
 #include <logging/log.h>
-
 #include <zmk/hid.h>
 #include <zmk/endpoints.h>
 #include <zmk/keymap.h>
@@ -12,15 +16,11 @@
 #include <zmk/event_manager.h>
 #include <zmk/events/endpoint_selection_changed.h>
 
-#include <pmw3360/pmw3360.h>
 
 #define SCROLL_DIV_FACTOR 5
 /* #define SCROLL_LAYER_INDEX 4 */
 #define SCROLL_LAYER_INDEX COND_CODE_0(DT_INST_NODE_HAS_PROP(0, scroll_layer), (255), \
                                        (DT_INST_PROP(0, scroll_layer)))
-
-#define CPI_DIVIDOR COND_CODE_0(DT_INST_NODE_HAS_PROP(0, cpi_dividor), (1), \
-                                       (DT_INST_PROP(0, cpi_dividor)))
 
 
 /* #if IS_ENABLED(CONFIG_SENSOR_LOG_LEVEL_DBG) */
@@ -54,10 +54,10 @@ static void trackball_poll_handler(struct k_work *work) {
 /* #endif */
 
   // get the device pointer
-	struct pmw3360_data *data = CONTAINER_OF(work, struct pmw3360_data, poll_work);
+	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data, poll_work);
   const struct device *dev = data->dev;
 
-  // fetch dx and dy from sensor and save them into pmw3360_data structure
+  // fetch dx and dy from sensor and save them into pixart_data structure
   int ret = sensor_sample_fetch(dev);
   if (ret < 0) {
     LOG_ERR("fetch: %d", ret);
@@ -121,7 +121,7 @@ static void trackball_poll_handler(struct k_work *work) {
 static void trackball_trigger_handler(const struct device *dev, const struct sensor_trigger *trig) {
   LOG_INF("I'm new trackball implementation");
 
-  struct pmw3360_data *data = dev->data;
+  struct pixart_data *data = dev->data;
 
   // do not resume motion interrupt by passing-in null handler 
   struct sensor_trigger trigger = {
@@ -138,7 +138,7 @@ static void trackball_trigger_handler(const struct device *dev, const struct sen
 
 // timer expiry function
 void trackball_timer_expiry(struct k_timer *timer) {
-	struct pmw3360_data *data = CONTAINER_OF(timer, struct pmw3360_data, poll_timer);
+	struct pixart_data *data = CONTAINER_OF(timer, struct pixart_data, poll_timer);
 
   // check whether reaching the polling count limit
   if(polling_count < max_poll_count) {
@@ -156,7 +156,7 @@ void trackball_timer_expiry(struct k_timer *timer) {
 
 // timer stop function
 void trackball_timer_stop(struct k_timer *timer) {
-	struct pmw3360_data *data = CONTAINER_OF(timer, struct pmw3360_data, poll_timer);
+	struct pixart_data *data = CONTAINER_OF(timer, struct pixart_data, poll_timer);
   const struct device *dev = data->dev;
 
   // reset polling count
@@ -181,7 +181,7 @@ void trackball_timer_stop(struct k_timer *timer) {
 static int trackball_init() {
   // get the sensor device instance
   const struct device *dev = DEVICE_DT_GET(DT_DRV_INST(0));
-	struct pmw3360_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 
   // setup the timer and handler function of the polling work
   k_timer_init(&data->poll_timer, trackball_timer_expiry, trackball_timer_stop);

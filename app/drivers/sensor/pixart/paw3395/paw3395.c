@@ -129,17 +129,18 @@ extern const uint8_t paw3395_pwrup_registers_data2[];
 
 extern const size_t paw3395_mode_registers_length[];
 extern const uint8_t* paw3395_mode_registers_addr[];
+extern const uint8_t* paw3395_mode_registers_data[];
 
 //////// Sensor initialization steps definition //////////
 // init is done in non-blocking manner (i.e., async), a //
 // delayable work is defined for this purpose           //
-  enum paw3395_init_step {
-    ASYNC_INIT_STEP_POWER_UP, // reset cs line and assert power-up reset
-    ASYNC_INIT_STEP_LOAD_SETTING, // load register setting
-    ASYNC_INIT_STEP_CONFIGURE, // set other registes like cpi and donwshift time (run, rest1, rest2) and clear motion registers
+enum paw3395_init_step {
+  ASYNC_INIT_STEP_POWER_UP, // reset cs line and assert power-up reset
+  ASYNC_INIT_STEP_LOAD_SETTING, // load register setting
+  ASYNC_INIT_STEP_CONFIGURE, // set other registes like cpi and donwshift time (run, rest1, rest2) and clear motion registers
 
-    ASYNC_INIT_STEP_COUNT // end flag
-  };
+  ASYNC_INIT_STEP_COUNT // end flag
+};
 
 /* Timings (in ms) needed in between steps to allow each step finishes succussfully. */
 // - Since MCU is not involved in the sensor init process, i is allowed to do other tasks.
@@ -147,7 +148,7 @@ extern const uint8_t* paw3395_mode_registers_addr[];
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 50, // required in spec
 	[ASYNC_INIT_STEP_LOAD_SETTING]    = 5,  // required in spec
-	[ASYNC_INIT_STEP_CONFIGURE]        = K_NO_WAIT,
+	[ASYNC_INIT_STEP_CONFIGURE]        = 0,
 };
 
 static int paw3395_async_init_power_up(const struct device *dev);
@@ -165,7 +166,7 @@ static int (* const async_init_fn[ASYNC_INIT_STEP_COUNT])(const struct device *d
 // checked and keep
 static int spi_cs_ctrl(const struct device *dev, bool enable)
 {
-	const struct paw3395_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 	int err;
 
 	if (!enable) {
@@ -189,8 +190,8 @@ static int spi_cs_ctrl(const struct device *dev, bool enable)
 static int reg_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 {
 	int err;
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	/* struct pixart_data *data = dev->data; */
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG((reg & SPI_WRITE_BIT) == 0);
 
@@ -250,8 +251,8 @@ static int reg_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 static int reg_write(const struct device *dev, uint8_t reg, uint8_t val)
 {
 	int err;
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	/* struct pixart_data *data = dev->data; */
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG((reg & SPI_WRITE_BIT) == 0);
 
@@ -297,8 +298,8 @@ static int motion_burst_read(const struct device *dev, uint8_t *buf,
 			     size_t burst_size)
 {
 	int err;
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	/* struct pixart_data *data = dev->data; */
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG(burst_size <= PAW3395_MAX_BURST_SIZE);
 
@@ -369,11 +370,9 @@ static int motion_burst_read(const struct device *dev, uint8_t *buf,
 }
 
 /** Writing an array of registers in sequence, used in power-up register initialization and running mode switching */
-static int burst_write(const struct device *dev, uint8_t *addr, const uint8_t *buf, size_t size)
+static int burst_write(const struct device *dev, const uint8_t *addr, const uint8_t *buf, size_t size)
 {
 	int err;
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
 
 	/* Write data */
 	for (size_t i = 0; i < size; i++) {
@@ -385,6 +384,7 @@ static int burst_write(const struct device *dev, uint8_t *addr, const uint8_t *b
 		}
 	}
 
+	/* struct pixart_data *data = dev->data; */
 	/* data->last_read_burst = false; */
 
 	return 0;
@@ -405,7 +405,7 @@ static int upload_pwrup_settings(const struct device *dev)
 
   // stage 2: read register 0x6C at 1ms interval until value 0x80 is returned
   //          or timeout after 60 times
-  uint8_t value == 0x00;
+  uint8_t value = 0;
   int count = 0;
   while( count < 60 ) {
     // wait for 1ms befor read (timing accuracy 1% is required)
@@ -518,7 +518,7 @@ static int set_run_mode(const struct device *dev, enum paw3395_run_mode run_mode
 }
 
 /* set cpi (x, y seperately): axis true for x, false for y */
-static int set_cpi(const struct device *dev, uint32_t cpi, bool_t axis)
+static int set_cpi(const struct device *dev, uint32_t cpi, bool axis)
 {
 	/* Set resolution with CPI step of 50 cpi
 	 * 0x0000: 50 cpi (minimum cpi)
@@ -543,13 +543,14 @@ static int set_cpi(const struct device *dev, uint32_t cpi, bool_t axis)
 	sys_put_le16(value, buf);
 
   // upload the new value
+  int err;
   if (axis) { // x-cpi
     uint8_t addr[2] = {PAW3395_REG_RESOLUTION_X_LOW, PAW3395_REG_RESOLUTION_X_HIGH};
-    int err = burst_write(dev, addr, buf, 2);
+    err = burst_write(dev, addr, buf, 2);
   }
   else { // y-cpi
     uint8_t addr[2] = {PAW3395_REG_RESOLUTION_Y_LOW, PAW3395_REG_RESOLUTION_Y_HIGH};
-    int err = burst_write(dev, addr, buf, 2);
+    err = burst_write(dev, addr, buf, 2);
   }
   if (err) {
     LOG_ERR("Failed to upload %s-CPI", axis ? "X" : "Y");
@@ -697,7 +698,7 @@ static int set_rest_mode(const struct device *dev, bool enable)
 	WRITE_BIT(value, PAW3395_REST_EN_POS, !enable);
 
 	LOG_INF("%sable rest modes", (enable) ? ("En") : ("Dis"));
-	err = reg_write(dev, reg_addr, value);
+	err = reg_write(dev, PAW3395_REG_PERFORMANCE, value);
 
 	if (err) {
 		LOG_ERR("Failed to set rest mode");
@@ -710,7 +711,7 @@ static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
 			    enum sensor_attribute attr,
 			    const struct sensor_value *val)
 {
-	struct paw3395_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 	int err;
 
 	if (unlikely(chan != SENSOR_CHAN_ALL)) {
@@ -723,54 +724,54 @@ static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
 	}
 
 	switch ((uint32_t)attr) {
-	case PAW3395_ATTR_XCPI:
+	case PIXART_ATTR_XCPI:
 		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), true);
 		break;
-	case PAW3395_ATTR_YCPI:
+	case PIXART_ATTR_YCPI:
 		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), false);
 		break;
 
-	case PAW3395_ATTR_REST_ENABLE:
-		err = set_rest_modes(dev, PAW3395_SVALUE_TO_BOOL(*val));
+	case PIXART_ATTR_REST_ENABLE:
+		err = set_rest_mode(dev, PAW3395_SVALUE_TO_BOOL(*val));
 		break;
 
-	case PAW3395_ATTR_RUN_DOWNSHIFT_TIME:
+	case PIXART_ATTR_RUN_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_RUN_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_REST1_DOWNSHIFT_TIME:
+	case PIXART_ATTR_REST1_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_REST1_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_REST2_DOWNSHIFT_TIME:
+	case PIXART_ATTR_REST2_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_REST2_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_REST1_SAMPLE_TIME:
+	case PIXART_ATTR_REST1_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST1_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_REST2_SAMPLE_TIME:
+	case PIXART_ATTR_REST2_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST2_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_REST3_SAMPLE_TIME:
+	case PIXART_ATTR_REST3_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST3_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PAW3395_ATTR_RUN_MODE:
+	case PIXART_ATTR_RUN_MODE:
 		err = set_run_mode(dev,
            PAW3395_SVALUE_TO_RUNMODE(*val));
 		break;
@@ -882,7 +883,7 @@ static int paw3395_async_init_configure(const struct device *dev)
 // checked and keep
 static void paw3395_async_init(struct k_work *work)
 {
-	struct paw3395_data *data = CONTAINER_OF(work, struct paw3395_data,
+	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data,
 						 init_work);
 	const struct device *dev = data->dev;
 
@@ -910,10 +911,10 @@ static void irq_handler(const struct device *gpiob, struct gpio_callback *cb,
 			uint32_t pins)
 {
 	int err;
-	struct paw3395_data *data = CONTAINER_OF(cb, struct paw3395_data,
+	struct pixart_data *data = CONTAINER_OF(cb, struct pixart_data,
 						 irq_gpio_cb);
 	const struct device *dev = data->dev;
-	const struct paw3395_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 
   // disable the interrupt line first
 	err = gpio_pin_interrupt_configure_dt(&config->irq_gpio,
@@ -931,10 +932,10 @@ static void trigger_handler(struct k_work *work)
 {
 	sensor_trigger_handler_t handler;
 	int err = 0;
-	struct paw3395_data *data = CONTAINER_OF(work, struct paw3395_data,
+	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data,
 						 trigger_handler_work);
 	const struct device *dev = data->dev;
-	const struct paw3395_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 
   // 1. the first lock period is used to procoss the trigger
   // if data_ready_handler is non-NULL, otherwise do nothing
@@ -972,8 +973,8 @@ static void trigger_handler(struct k_work *work)
 static int paw3395_init_irq(const struct device *dev)
 {
 	int err;
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
   // check readiness of irq gpio pin
 	if (!device_is_ready(config->irq_gpio.port)) {
@@ -1002,8 +1003,8 @@ static int paw3395_init_irq(const struct device *dev)
 
 static int paw3395_init(const struct device *dev)
 {
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 	int err;
 
   // init device pointer
@@ -1051,7 +1052,7 @@ static int paw3395_init(const struct device *dev)
 
 static int paw3395_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
-	struct paw3395_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 	uint8_t buf[PAW3395_BURST_SIZE];
 
 	if (unlikely(chan != SENSOR_CHAN_ALL)) {
@@ -1092,7 +1093,7 @@ static int paw3395_sample_fetch(const struct device *dev, enum sensor_channel ch
 static int paw3395_channel_get(const struct device *dev, enum sensor_channel chan,
 			       struct sensor_value *val)
 {
-	struct paw3395_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 
 	if (unlikely(!data->ready)) {
 		LOG_DBG("Device is not initialized yet");
@@ -1127,8 +1128,8 @@ static int paw3395_trigger_set(const struct device *dev,
 			       const struct sensor_trigger *trig,
 			       sensor_trigger_handler_t handler)
 {
-	struct paw3395_data *data = dev->data;
-	const struct paw3395_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 	int err;
 
 	if (unlikely(trig->type != SENSOR_TRIG_DATA_READY)) {
@@ -1175,9 +1176,9 @@ static const struct sensor_driver_api paw3395_driver_api = {
 };
 
 #define PAW3395_DEFINE(n)						       \
-	static struct paw3395_data data##n;				       \
+	static struct pixart_data data##n;				       \
 									       \
-	static const struct paw3395_config config##n = {		       \
+	static const struct pixart_config config##n = {		       \
 		.irq_gpio = GPIO_DT_SPEC_INST_GET(n, irq_gpios),	       \
 		.bus = {						       \
 			.bus = DEVICE_DT_GET(DT_INST_BUS(n)),		       \

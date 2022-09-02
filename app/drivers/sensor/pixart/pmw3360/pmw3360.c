@@ -115,6 +115,16 @@ extern const uint8_t pmw3360_firmware_data[];
 // init is done in non-blocking manner (i.e., async), a delayable work is defined for this job
 // see pmw3360_init and pmw3360_async_init)
 
+enum async_init_step {
+	ASYNC_INIT_STEP_POWER_UP, // power up reset
+	ASYNC_INIT_STEP_FW_LOAD_START, // clear motion registers, disable REST mode, enable SROM register
+	ASYNC_INIT_STEP_FW_LOAD_CONTINUE, // start SROM download
+	ASYNC_INIT_STEP_FW_LOAD_VERIFY, // verify SROM pid and fid, enable REST mode
+	ASYNC_INIT_STEP_CONFIGURE, // set cpi and donwshift time (run, rest1, rest2)
+
+	ASYNC_INIT_STEP_COUNT // end flag
+};
+
 // delay (ms) in between steps
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 1,
@@ -140,7 +150,7 @@ static int (* const async_init_fn[ASYNC_INIT_STEP_COUNT])(const struct device *d
 
 static int spi_cs_ctrl(const struct device *dev, bool enable)
 {
-	const struct pmw3360_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 	int err;
 
 	if (!enable) {
@@ -162,8 +172,8 @@ static int spi_cs_ctrl(const struct device *dev, bool enable)
 static int reg_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 {
 	int err;
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG((reg & SPI_WRITE_BIT) == 0);
 
@@ -221,8 +231,8 @@ static int reg_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 static int reg_write(const struct device *dev, uint8_t reg, uint8_t val)
 {
 	int err;
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG((reg & SPI_WRITE_BIT) == 0);
 
@@ -268,8 +278,8 @@ static int motion_burst_read(const struct device *dev, uint8_t *buf,
 			     size_t burst_size)
 {
 	int err;
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
 	__ASSERT_NO_MSG(burst_size <= PMW3360_MAX_BURST_SIZE);
 
@@ -341,8 +351,8 @@ static int burst_write(const struct device *dev, uint8_t reg, const uint8_t *buf
 		       size_t size)
 {
 	int err;
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
 	/* Write address of burst register */
 	uint8_t write_buf = reg | SPI_WRITE_BIT;
@@ -649,10 +659,10 @@ static void irq_handler(const struct device *gpiob, struct gpio_callback *cb,
 			uint32_t pins)
 {
 	int err;
-	struct pmw3360_data *data = CONTAINER_OF(cb, struct pmw3360_data,
+	struct pixart_data *data = CONTAINER_OF(cb, struct pixart_data,
 						 irq_gpio_cb);
 	const struct device *dev = data->dev;
-	const struct pmw3360_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 
   // disable the interrupt line first
 	err = gpio_pin_interrupt_configure_dt(&config->irq_gpio,
@@ -670,10 +680,10 @@ static void trigger_handler(struct k_work *work)
 {
 	sensor_trigger_handler_t handler;
 	int err = 0;
-	struct pmw3360_data *data = CONTAINER_OF(work, struct pmw3360_data,
+	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data,
 						 trigger_handler_work);
 	const struct device *dev = data->dev;
-	const struct pmw3360_config *config = dev->config;
+	const struct pixart_config *config = dev->config;
 
   // 1. the first lock period is used to procoss the trigger
   // if data_ready_handler is non-NULL, otherwise do nothing
@@ -744,7 +754,7 @@ static int pmw3360_async_init_configure(const struct device *dev)
 
 static void pmw3360_async_init(struct k_work *work)
 {
-	struct pmw3360_data *data = CONTAINER_OF(work, struct pmw3360_data,
+	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data,
 						 init_work);
 	const struct device *dev = data->dev;
 
@@ -770,8 +780,8 @@ static void pmw3360_async_init(struct k_work *work)
 static int pmw3360_init_irq(const struct device *dev)
 {
 	int err;
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 
   // check readiness of irq gpio pin
 	if (!device_is_ready(config->irq_gpio.port)) {
@@ -800,8 +810,8 @@ static int pmw3360_init_irq(const struct device *dev)
 
 static int pmw3360_init(const struct device *dev)
 {
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 	int err;
 
   // init device pointer
@@ -851,7 +861,7 @@ static int pmw3360_init(const struct device *dev)
 
 static int pmw3360_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
-	struct pmw3360_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 	uint8_t buf[PMW3360_BURST_SIZE];
 
 	if (unlikely(chan != SENSOR_CHAN_ALL)) {
@@ -892,7 +902,7 @@ static int pmw3360_sample_fetch(const struct device *dev, enum sensor_channel ch
 static int pmw3360_channel_get(const struct device *dev, enum sensor_channel chan,
 			       struct sensor_value *val)
 {
-	struct pmw3360_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 
 	if (unlikely(!data->ready)) {
 		LOG_DBG("Device is not initialized yet");
@@ -927,8 +937,8 @@ static int pmw3360_trigger_set(const struct device *dev,
 			       const struct sensor_trigger *trig,
 			       sensor_trigger_handler_t handler)
 {
-	struct pmw3360_data *data = dev->data;
-	const struct pmw3360_config *config = dev->config;
+	struct pixart_data *data = dev->data;
+	const struct pixart_config *config = dev->config;
 	int err;
 
 	if (unlikely(trig->type != SENSOR_TRIG_DATA_READY)) {
@@ -971,7 +981,7 @@ static int pmw3360_attr_set(const struct device *dev, enum sensor_channel chan,
 			    enum sensor_attribute attr,
 			    const struct sensor_value *val)
 {
-	struct pmw3360_data *data = dev->data;
+	struct pixart_data *data = dev->data;
 	int err;
 
 	if (unlikely(chan != SENSOR_CHAN_ALL)) {
@@ -984,49 +994,49 @@ static int pmw3360_attr_set(const struct device *dev, enum sensor_channel chan,
 	}
 
 	switch ((uint32_t)attr) {
-	case PMW3360_ATTR_CPI:
+	case PIXART_ATTR_CPI:
 		err = update_cpi(dev, PMW3360_SVALUE_TO_CPI(*val));
 		break;
 
-	case PMW3360_ATTR_REST_ENABLE:
+	case PIXART_ATTR_REST_ENABLE:
 		err = toggle_rest_modes(dev,
 					PMW3360_REG_CONFIG2,
 					PMW3360_SVALUE_TO_BOOL(*val));
 		break;
 
-	case PMW3360_ATTR_RUN_DOWNSHIFT_TIME:
+	case PIXART_ATTR_RUN_DOWNSHIFT_TIME:
 		err = update_downshift_time(dev,
 					    PMW3360_REG_RUN_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PMW3360_ATTR_REST1_DOWNSHIFT_TIME:
+	case PIXART_ATTR_REST1_DOWNSHIFT_TIME:
 		err = update_downshift_time(dev,
 					    PMW3360_REG_REST1_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PMW3360_ATTR_REST2_DOWNSHIFT_TIME:
+	case PIXART_ATTR_REST2_DOWNSHIFT_TIME:
 		err = update_downshift_time(dev,
 					    PMW3360_REG_REST2_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PMW3360_ATTR_REST1_SAMPLE_TIME:
+	case PIXART_ATTR_REST1_SAMPLE_TIME:
 		err = update_sample_time(dev,
 					 PMW3360_REG_REST1_RATE_LOWER,
 					 PMW3360_REG_REST1_RATE_UPPER,
 					 PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PMW3360_ATTR_REST2_SAMPLE_TIME:
+	case PIXART_ATTR_REST2_SAMPLE_TIME:
 		err = update_sample_time(dev,
 					 PMW3360_REG_REST2_RATE_LOWER,
 					 PMW3360_REG_REST2_RATE_UPPER,
 					 PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PMW3360_ATTR_REST3_SAMPLE_TIME:
+	case PIXART_ATTR_REST3_SAMPLE_TIME:
 		err = update_sample_time(dev,
 					 PMW3360_REG_REST3_RATE_LOWER,
 					 PMW3360_REG_REST3_RATE_UPPER,
@@ -1049,9 +1059,9 @@ static const struct sensor_driver_api pmw3360_driver_api = {
 };
 
 #define PMW3360_DEFINE(n)						       \
-	static struct pmw3360_data data##n;				       \
+	static struct pixart_data data##n;				       \
 									       \
-	static const struct pmw3360_config config##n = {		       \
+	static const struct pixart_config config##n = {		       \
 		.irq_gpio = GPIO_DT_SPEC_INST_GET(n, irq_gpios),	       \
 		.bus = {						       \
 			.bus = DEVICE_DT_GET(DT_INST_BUS(n)),		       \
