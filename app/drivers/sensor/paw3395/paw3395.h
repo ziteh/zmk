@@ -29,8 +29,9 @@ extern "C" {
 
   /** Sensor specific attributes of PAW3395. */
   enum paw3395_attribute {
-    /** Sensor CPI for both X and Y axes. */
-    PAW3395_ATTR_CPI = SENSOR_ATTR_PRIV_START,
+    /** Sensor CPI for X and Y axes. */
+    PAW3395_ATTR_XCPI = SENSOR_ATTR_PRIV_START,
+    PAW3395_ATTR_YCPI,
 
     /** Enable or disable sleep modes. */
     PAW3395_ATTR_REST_ENABLE,
@@ -54,7 +55,6 @@ extern "C" {
     PAW3395_ATTR_REST3_SAMPLE_TIME,
 
     /** Select the running mode. */
-    // todo: implement it
     PAW3395_ATTR_RUN_MODE,
   };
 

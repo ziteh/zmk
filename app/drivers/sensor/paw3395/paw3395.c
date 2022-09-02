@@ -114,6 +114,7 @@ LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 /* Helper macros used to convert sensor values. */
 #define PAW3395_SVALUE_TO_CPI(svalue) ((uint32_t)(svalue).val1)
 #define PAW3395_SVALUE_TO_TIME(svalue) ((uint32_t)(svalue).val1)
+#define PAW3395_SVALUE_TO_RUNMODE(svalue) ((uint32_t)(svalue).val1)
 #define PAW3395_SVALUE_TO_BOOL(svalue) ((svalue).val1 != 0)
 
 
@@ -389,6 +390,73 @@ static int burst_write(const struct device *dev, uint8_t *addr, const uint8_t *b
 	return 0;
 }
 
+static int upload_pwrup_settings(const struct device *dev)
+{
+  LOG_INF("");
+
+  // stage 1: configure the first 137 registers
+  int err;
+  err = burst_write(dev, paw3395_pwrup_registers_addr1, \
+                    paw3395_pwrup_registers_data1, paw3395_pwrup_registers_length1);
+  if(err) {
+    LOG_ERR("Can't setting first group of registers");
+    return err;
+  }
+
+  // stage 2: read register 0x6C at 1ms interval until value 0x80 is returned
+  //          or timeout after 60 times
+  uint8_t value == 0x00;
+  int count = 0;
+  while( count < 60 ) {
+    // wait for 1ms befor read (timing accuracy 1% is required)
+    k_msleep(1);
+
+    if (reg_read(dev, 0x6C, &value)) {
+      LOG_ERR("Failed to read register 0x6C");
+      return err;
+    }
+
+    if( value == 0x80 )
+      break;
+  }
+
+  // do some setting if 0x80 is not returned within 60 poll
+  if( value != 0x80 ) {
+    LOG_INF("vale 0x80 is not returned within 60 poll times");
+    uint8_t addr[] = {0x7F, 0x6C, 0x7F};
+    uint8_t data[] = {0x14, 0x00, 0x00};
+
+    err = burst_write(dev, addr, data, 3);
+    if(err) {
+      LOG_ERR("Can't setting the backup registers");
+      return err;
+    }
+  }
+
+  // stage 3: configure the remaining 5 rigisters
+  err = burst_write(dev, paw3395_pwrup_registers_addr2,\
+                    paw3395_pwrup_registers_data2, paw3395_pwrup_registers_length2);
+  if(err) {
+    LOG_ERR("Can't setting the second group of registers");
+    return err;
+  }
+
+  // stage 4: check the product id
+	uint8_t product_id;
+	err = reg_read(dev, PAW3395_REG_PRODUCT_ID, &product_id);
+	if (err) {
+		LOG_ERR("Cannot obtain product id");
+		return err;
+	}
+
+	if (product_id != PAW3395_PRODUCT_ID) {
+		LOG_ERR("Invalid product id!");
+		return -EIO;
+	}
+
+  return 0;
+}
+
 static int set_run_mode(const struct device *dev, enum paw3395_run_mode run_mode)
 {
   int err;
@@ -449,62 +517,8 @@ static int set_run_mode(const struct device *dev, enum paw3395_run_mode run_mode
   return err;
 }
 
-static int upload_pwrup_settings(const struct device *dev)
-{
-  LOG_INF("");
-
-  // stage 1: configure the first 137 registers
-  int err;
-  err = burst_write(dev, paw3395_pwrup_registers_addr1, \
-                    paw3395_pwrup_registers_data1, paw3395_pwrup_registers_length1);
-  if(err) {
-    LOG_ERR("Can't setting first group of registers");
-    return err;
-  }
-
-  // stage 2: read register 0x6C at 1ms interval until value 0x80 is returned
-  //          or timeout after 60 times
-  uint8_t value == 0x00;
-  int count = 0;
-  while( count < 60 ) {
-    // wait for 1ms befor read (timing accuracy 1% is required)
-    k_msleep(1);
-
-    if (reg_read(dev, 0x6C, &value)) {
-      LOG_ERR("Failed to read register 0x6C");
-      return err;
-    }
-
-    if( value == 0x80 )
-      break;
-  }
-
-  // do some setting if 0x80 is not returned within 60 poll
-  if( value != 0x80 ) {
-    LOG_INF("vale 0x80 is not returned within 60 poll times");
-    uint8_t addr[] = {0x7F, 0x6C, 0x7F};
-    uint8_t data[] = {0x14, 0x00, 0x00};
-
-    err = burst_write(dev, addr, data, 3);
-    if(err) {
-      LOG_ERR("Can't setting the backup registers");
-      return err;
-    }
-  }
-
-  // stage 3: configure the remaining 5 rigisters
-  err = burst_write(dev, paw3395_pwrup_registers_addr2,\
-                    paw3395_pwrup_registers_data2, paw3395_pwrup_registers_length2);
-  if(err) {
-    LOG_ERR("Can't setting the second group of registers");
-    return err;
-  }
-
-  return 0;
-}
-
-/* set cpi (x, y seperately) */
-static int set_cpi(const struct device *dev, uint32_t xcpi, uint32_t ycpi)
+/* set cpi (x, y seperately): axis true for x, false for y */
+static int set_cpi(const struct device *dev, uint32_t cpi, bool_t axis)
 {
 	/* Set resolution with CPI step of 50 cpi
 	 * 0x0000: 50 cpi (minimum cpi)
@@ -520,36 +534,29 @@ static int set_cpi(const struct device *dev, uint32_t xcpi, uint32_t ycpi)
 		return -EINVAL;
 	}
 
-  /* set x cpi */
 	// Convert CPI to register value
-	uint16_t value = (xcpi / 50) - 1;
-	LOG_INF("Setting X-CPI to %u (reg value 0x%x)", xcpi, value);
+	uint16_t value = (cpi / 50) - 1;
+	LOG_INF("Setting %s-CPI to %u (reg value 0x%x)", axis ? "X" : "Y", cpi, value);
 
   // seperate the two bytes
 	uint8_t buf[2];
 	sys_put_le16(value, buf);
 
-  // upload the new value 
-  uint8_t addr[2] = {PAW3395_REG_RESOLUTION_X_LOW, PAW3395_REG_RESOLUTION_X_HIGH};
-	int err = burst_write(dev, addr, buf, 2);
-	if (err) {
-		LOG_ERR("Failed to upload X CPI");
-	}
-
-  /* set y cpi */
-	value = (ycpi / 50) - 1;
-	LOG_INF("Setting Y-CPI to %u (reg value 0x%x)", ycpi, value);
-
-	sys_put_le16(value, buf);
-  addr[2] = {PAW3395_REG_RESOLUTION_Y_LOW, PAW3395_REG_RESOLUTION_Y_HIGH};
-
-  err = burst_write(dev, addr, buf, 2);
-	if (err) {
-		LOG_ERR("Failed to upload Y CPI");
-	}
+  // upload the new value
+  if (axis) { // x-cpi
+    uint8_t addr[2] = {PAW3395_REG_RESOLUTION_X_LOW, PAW3395_REG_RESOLUTION_X_HIGH};
+    int err = burst_write(dev, addr, buf, 2);
+  }
+  else { // y-cpi
+    uint8_t addr[2] = {PAW3395_REG_RESOLUTION_Y_LOW, PAW3395_REG_RESOLUTION_Y_HIGH};
+    int err = burst_write(dev, addr, buf, 2);
+  }
+  if (err) {
+    LOG_ERR("Failed to upload %s-CPI", axis ? "X" : "Y");
+  }
 
   /* set the cpi */
-  if ( xcpi > 9000 || ycpi > 9000 ) {
+  if ( cpi > 9000 ) {
     LOG_INF("Enable ripple control, since cpi is too large");
 
     err = reg_read(dev, PAW3395_REG_RIPPLE_CONTROL, buf);
@@ -574,39 +581,38 @@ static int set_cpi(const struct device *dev, uint32_t xcpi, uint32_t ycpi)
 	return err;
 }
 
-/* set sampling rate in each mode (in ms) */
-// This function is implemented to be able to change the sample period of each rest mode.
-// However, only rest1 sample period is exposed to end user and customizable through CONFIG_PAW3395_REST_SAMPLE_TIME_MS
-// Sample periods in rest2 and rest3 are hard-coded (using the defaut value currently: 100ms and 504ms respectively)
-static int set_sample_time(const struct device *dev,
-			      uint8_t reg_addr_lower,
-			      uint8_t reg_addr_upper,
-			      uint32_t sample_time)
+/* Set sampling rate in each mode (in ms) */
+static int set_sample_time(const struct device *dev, uint8_t reg_addr, uint32_t sample_time)
 {
-	/* Set sample time for the Rest1-Rest3 modes.
-	 * Values above 0x09B0 will trigger internal watchdog reset.
-	 */
-	uint32_t maxtime = 0x9B0;
-	uint32_t mintime = 1;
+	uint32_t maxtime, mintime;
+  switch (reg_addr) {
+  case PAW3395_REG_REST1_PERIOD:
+    mintime = 1;
+    maxtime = 255;
+    break;
+  case PAW3395_REG_REST2_PERIOD:
+    mintime = 4;
+    maxtime = 4*255;
+    break;
+  case PAW3395_REG_REST3_PERIOD:
+    mintime = 8;
+    maxtime = 8*255;
+    break;
+  default:
+    LOG_WRN("unrecognizable rest mode register");
+    return -ENOTSUP;
+  }
 
 	if ((sample_time > maxtime) || (sample_time < mintime)) {
-		LOG_WRN("Sample time %u out of range", sample_time);
+		LOG_WRN("Sample time %u out of range [%u, %u]", sample_time, mintime, maxtime);
 		return -EINVAL;
 	}
 
 	LOG_INF("Set sample time to %u ms", sample_time);
 
-	/* The sample time is (reg_value + 1) ms. */
-	sample_time--;
-	uint8_t buf[2];
-
-	sys_put_le16((uint16_t)sample_time, buf);
-
-	int err = reg_write(dev, reg_addr_lower, buf[0]);
-
+	/* The sample time is (reg_value * mintime ) ms. 0x00 is rounded to 0x1 */
+  int err = reg_write(dev, reg_addr, (uint8_t)(sample_time / mintime));
 	if (!err) {
-		err = reg_write(dev, reg_addr_upper, buf[1]);
-	} else {
 		LOG_ERR("Failed to change sample time");
 	}
 
@@ -614,12 +620,12 @@ static int set_sample_time(const struct device *dev,
 }
 
 
-
+/* time unit: ms */
 static int set_downshift_time(const struct device *dev, uint8_t reg_addr, uint32_t time)
 {
 	/* Set downshift time in ms:
-	 * - Run downshift time (from Run to Rest1 mode), default: 500ms
-	 * - Rest 1 downshift time (from Rest1 to Rest2 mode), default: 9.92 s
+	 * - Run downshift time (from Run to Rest1 mode), default: 1 s
+	 * - Rest 1 downshift time (from Rest1 to Rest2 mode), default: ~10 s
 	 * - Rest 2 downshift time (from Rest2 to Rest3 mode), default: ~10 min
 	 */
 	uint32_t maxtime;
@@ -630,26 +636,26 @@ static int set_downshift_time(const struct device *dev, uint8_t reg_addr, uint32
 		/*
 		 * Run downshift time = PAW3395_REG_RUN_DOWNSHIFT * 256 * 0.05 ms
 		 */
-		maxtime = 2550;
-		mintime = 10;
+		maxtime = 3264;
+		mintime = 13; // real value is 12.8, rounded to 13
 		break;
 
 	case PAW3395_REG_REST1_DOWNSHIFT:
 		/*
 		 * Rest1 downshift time = PAW3395_REG_RUN_DOWNSHIFT
-		 *                        * 320 * Rest1 rate (default 1 ms)
+		 *                        * 64 * Rest1_sample_period (default 1 ms)
 		 */
-		maxtime = 81600;
-		mintime = 320;
+		maxtime = 255 * 64 * CONFIG_PAW3395_REST1_SAMPLE_TIME_MS;
+		mintime = 64 * CONFIG_PAW3395_REST1_SAMPLE_TIME_MS;
 		break;
 
 	case PAW3395_REG_REST2_DOWNSHIFT:
 		/*
 		 * Rest2 downshift time = PAW3395_REG_REST2_DOWNSHIFT
-		 *                        * 32 * Rest2 rate (default 100 ms)
+		 *                        * 64 * Rest2 rate (default 100 ms)
 		 */
-		maxtime = 816000;
-		mintime = 3200;
+		maxtime = 255 * 64 * CONFIG_PAW3395_REST2_SAMPLE_TIME_MS;
+		mintime = 64 * CONFIG_PAW3395_REST2_SAMPLE_TIME_MS;
 		break;
 
 	default:
@@ -700,30 +706,205 @@ static int set_rest_mode(const struct device *dev, bool enable)
 	return err;
 }
 
+static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
+			    enum sensor_attribute attr,
+			    const struct sensor_value *val)
+{
+	struct paw3395_data *data = dev->data;
+	int err;
+
+	if (unlikely(chan != SENSOR_CHAN_ALL)) {
+		return -ENOTSUP;
+	}
+
+	if (unlikely(!data->ready)) {
+		LOG_DBG("Device is not initialized yet");
+		return -EBUSY;
+	}
+
+	switch ((uint32_t)attr) {
+	case PAW3395_ATTR_XCPI:
+		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), true);
+		break;
+	case PAW3395_ATTR_YCPI:
+		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), false);
+		break;
+
+	case PAW3395_ATTR_REST_ENABLE:
+		err = set_rest_modes(dev, PAW3395_SVALUE_TO_BOOL(*val));
+		break;
+
+	case PAW3395_ATTR_RUN_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
+					    PAW3395_REG_RUN_DOWNSHIFT,
+					    PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_REST1_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
+					    PAW3395_REG_REST1_DOWNSHIFT,
+					    PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_REST2_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
+					    PAW3395_REG_REST2_DOWNSHIFT,
+					    PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_REST1_SAMPLE_TIME:
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST1_PERIOD,
+					 PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_REST2_SAMPLE_TIME:
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST2_PERIOD,
+					 PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_REST3_SAMPLE_TIME:
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST3_PERIOD,
+					 PAW3395_SVALUE_TO_TIME(*val));
+		break;
+
+	case PAW3395_ATTR_RUN_MODE:
+		err = set_run_mode(dev,
+           PAW3395_SVALUE_TO_RUNMODE(*val));
+		break;
+
+	default:
+		LOG_ERR("Unknown attribute");
+		return -ENOTSUP;
+	}
+
+	return err;
+}
+
+static int paw3395_async_init_power_up(const struct device *dev)
+{
+  /* needed? Reset spi port */
+  spi_cs_ctrl(dev, false);
+  spi_cs_ctrl(dev, true);
+
+	/* Reset sensor */
+	return reg_write(dev, PAW3395_REG_POWER_UP_RESET, 0x5A);
+}
+
 static int paw3395_async_init_load_setting(const struct device *dev)
 {
 	int err;
 
 	LOG_INF("Uploading optical sensor firmware...");
-
-	/* Write 0x18 to SROM_enable to start SROM download */
-	err = reg_write(dev, PAW3395_REG_SROM_ENABLE, 0x18);
-	if (err) {
-		LOG_ERR("Cannot start SROM download");
-		return err;
-	}
-
-	/* Write SROM file into SROM_Load_Burst register.
-	 * Data must start with SROM_Load_Burst address.
-	 */
-	err = burst_write(dev, PAW3395_REG_SROM_LOAD_BURST,
-			  paw3395_firmware_data, paw3395_firmware_length);
-	if (err) {
-		LOG_ERR("Cannot write firmware to sensor");
-	}
+  err = upload_pwrup_settings(dev);
 
 	return err;
 }
+
+static int paw3395_async_init_configure(const struct device *dev)
+{
+	int err;
+
+  // run mode
+  err = set_run_mode(dev, CONFIG_PAW3395_RUN_MODE);
+
+  // cpi
+	if (!err) {
+    err = set_cpi(dev, CONFIG_PAW3395_X_CPI, true);
+  }
+
+	if (!err) {
+    err = set_cpi(dev, CONFIG_PAW3395_Y_CPI, false);
+  }
+
+  // sample period, which affects scaling of rest1 downshift time
+	if (!err) {
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST1_PERIOD,
+					 CONFIG_PAW3395_REST1_SAMPLE_TIME_MS);
+  }
+
+	if (!err) {
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST2_PERIOD,
+					 CONFIG_PAW3395_REST2_SAMPLE_TIME_MS);
+  }
+	if (!err) {
+		err = set_sample_time(dev,
+					 PAW3395_REG_REST3_PERIOD,
+					 CONFIG_PAW3395_REST3_SAMPLE_TIME_MS);
+  }
+
+  // downshift time for each rest mode
+	if (!err) {
+		err = set_downshift_time(dev,
+					    PAW3395_REG_RUN_DOWNSHIFT,
+					    CONFIG_PAW3395_RUN_DOWNSHIFT_TIME_MS);
+	}
+
+	if (!err) {
+		err = set_downshift_time(dev,
+					    PAW3395_REG_REST1_DOWNSHIFT,
+					    CONFIG_PAW3395_REST1_DOWNSHIFT_TIME_MS);
+	}
+
+	if (!err) {
+		err = set_downshift_time(dev,
+					    PAW3395_REG_REST2_DOWNSHIFT,
+					    CONFIG_PAW3395_REST2_DOWNSHIFT_TIME_MS);
+	}
+
+
+  // rest mode
+	if (!err) {
+    if(IS_ENABLED(CONFIG_PAW3395_ENABLE_REST))
+      err = set_rest_mode(dev, true);
+    else
+      err = set_rest_mode(dev, false);
+	}
+
+  // clear motion registers and ready to go
+	for (uint8_t reg = 0x02; (reg <= 0x06) && !err; reg++) {
+		uint8_t buf[1];
+		err = reg_read(dev, reg, buf);
+	}
+
+	if (err) {
+		LOG_ERR("Config the sensor failed");
+		return err;
+	}
+
+	return 0;
+}
+
+// checked and keep
+static void paw3395_async_init(struct k_work *work)
+{
+	struct paw3395_data *data = CONTAINER_OF(work, struct paw3395_data,
+						 init_work);
+	const struct device *dev = data->dev;
+
+	LOG_DBG("PAW3395 async init step %d", data->async_init_step);
+
+	data->err = async_init_fn[data->async_init_step](dev);
+	if (data->err) {
+		LOG_ERR("PAW3395 initialization failed");
+	} else {
+		data->async_init_step++;
+
+		if (data->async_init_step == ASYNC_INIT_STEP_COUNT) {
+			data->ready = true; // sensor is ready to work
+			LOG_INF("PAW3395 initialized");
+		} else {
+			k_work_schedule(&data->init_work,
+					K_MSEC(async_init_delay[
+						data->async_init_step]));
+		}
+	}
+}
+
 
 static void irq_handler(const struct device *gpiob, struct gpio_callback *cb,
 			uint32_t pins)
@@ -785,70 +966,6 @@ static void trigger_handler(struct k_work *work)
 	if (unlikely(err)) {
 		LOG_ERR("Cannot re-enable IRQ");
 		k_panic();
-	}
-}
-
-static int paw3395_async_init_power_up(const struct device *dev)
-{
-	/* Reset sensor */
-
-	return reg_write(dev, PAW3395_REG_POWER_UP_RESET, 0x5A);
-}
-
-static int paw3395_async_init_configure(const struct device *dev)
-{
-	int err;
-
-  // cpi
-	err = set_cpi(dev, CONFIG_PAW3395_CPI);
-
-  //todo: rest1 sample period, which affects scaling of rest1 downshift time
-
-  // downshift time for each rest mode
-	if (!err) {
-		err = set_downshift_time(dev,
-					    PAW3395_REG_RUN_DOWNSHIFT,
-					    CONFIG_PAW3395_RUN_DOWNSHIFT_TIME_MS);
-	}
-
-	if (!err) {
-		err = set_downshift_time(dev,
-					    PAW3395_REG_REST1_DOWNSHIFT,
-					    CONFIG_PAW3395_REST1_DOWNSHIFT_TIME_MS);
-	}
-
-	if (!err) {
-		err = set_downshift_time(dev,
-					    PAW3395_REG_REST2_DOWNSHIFT,
-					    CONFIG_PAW3395_REST2_DOWNSHIFT_TIME_MS);
-	}
-
-	return err;
-}
-
-// checked and keep
-static void paw3395_async_init(struct k_work *work)
-{
-	struct paw3395_data *data = CONTAINER_OF(work, struct paw3395_data,
-						 init_work);
-	const struct device *dev = data->dev;
-
-	LOG_DBG("PAW3395 async init step %d", data->async_init_step);
-
-	data->err = async_init_fn[data->async_init_step](dev);
-	if (data->err) {
-		LOG_ERR("PAW3395 initialization failed");
-	} else {
-		data->async_init_step++;
-
-		if (data->async_init_step == ASYNC_INIT_STEP_COUNT) {
-			data->ready = true; // sensor is ready to work
-			LOG_INF("PAW3395 initialized");
-		} else {
-			k_work_schedule(&data->init_work,
-					K_MSEC(async_init_delay[
-						data->async_init_step]));
-		}
 	}
 }
 
@@ -921,10 +1038,8 @@ static int paw3395_init(const struct device *dev)
 
   // Setup delayable and non-blocking init jobs, including following steps:
   // 1. power reset
-  // 2. clear motion registers
-  // 3. srom firmware download and checking
-  // 4. eable rest mode
-  // 5. set cpi and downshift time (not sample rate)
+  // 2. upload initial settings
+  // 3. other configs like cpi, downshift time, sample time etc.
   // The sensor is ready to work (i.e., data->ready=true after the above steps are finished)
   k_work_init_delayable(&data->init_work, paw3395_async_init);
 
@@ -1048,59 +1163,6 @@ static int paw3395_trigger_set(const struct device *dev,
 	}
 
 	k_spin_unlock(&data->lock, key);
-
-	return err;
-}
-
-static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
-			    enum sensor_attribute attr,
-			    const struct sensor_value *val)
-{
-	struct paw3395_data *data = dev->data;
-	int err;
-
-	if (unlikely(chan != SENSOR_CHAN_ALL)) {
-		return -ENOTSUP;
-	}
-
-	if (unlikely(!data->ready)) {
-		LOG_DBG("Device is not initialized yet");
-		return -EBUSY;
-	}
-
-	switch ((uint32_t)attr) {
-	case PAW3395_ATTR_CPI:
-		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val));
-		break;
-
-	case PAW3395_ATTR_REST_ENABLE:
-		err = set_rest_modes(dev,
-					PAW3395_REG_CONFIG2,
-					PAW3395_SVALUE_TO_BOOL(*val));
-		break;
-
-	case PAW3395_ATTR_RUN_DOWNSHIFT_TIME:
-		err = set_downshift_time(dev,
-					    PAW3395_REG_RUN_DOWNSHIFT,
-					    PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	case PAW3395_ATTR_REST1_DOWNSHIFT_TIME:
-		err = set_downshift_time(dev,
-					    PAW3395_REG_REST1_DOWNSHIFT,
-					    PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	case PAW3395_ATTR_REST2_DOWNSHIFT_TIME:
-		err = set_downshift_time(dev,
-					    PAW3395_REG_REST2_DOWNSHIFT,
-					    PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	default:
-		LOG_ERR("Unknown attribute");
-		return -ENOTSUP;
-	}
 
 	return err;
 }
