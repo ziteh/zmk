@@ -26,6 +26,17 @@ config PAW3395_CPI_DIVIDOR
 	help
 	  Default CPI dividor value.
 
+config PAW3395_REST_SAMPLE_TIME_MS
+	int "PAW3395's sample time in REST1 stage"
+	default 10
+	range 1 255
+	help
+	  Default REST1 mode sample period in millisecond.
+    Smaller value means less power consumption.
+    Only sample time in REST1 is customizable.
+    The sample time in REST2 and REST3 is fixed to 100 ms
+    and 504 ms respectively.
+
 config PAW3395_RUN_DOWNSHIFT_TIME_MS
 	int "PAW3395's default RUN mode downshift time"
 	default 500

@@ -13,9 +13,8 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 
-/* Timings defined by spec (in us), they are used in SPI communication and MCU should not do other tasks during waiting, thus using k_busy_wain instead of k_sleep */
-// sub-us time is rounded to us, due to the limitation of k_busy_wait
-// see the discusssion here: https://github.com/zephyrproject-rtos/zephyr/issues/6498
+/* Timings (in us) used in SPI communication. Since MCU should not do other tasks during wait, k_busy_wait is used instead of k_sleep */
+// - sub-us time is rounded to us, due to the limitation of k_busy_wait, see : https://github.com/zephyrproject-rtos/zephyr/issues/6498
 #define T_NCS_SCLK	1			/* 120 ns (rounded to 1us) */
 #define T_SCLK_NCS_WR	1 /* 1 us */
 #define T_SRAD		2			/* 2 us */
@@ -24,60 +23,71 @@ LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 #define T_SWX		5 /*  5 us */
 #define T_BEXIT		1			/* 500 ns (rounded to 1us)*/
 
-/* Sensor registers */
+/* Sensor registers (addresses) */
+// common registers as pmw3360
 #define PAW3395_REG_PRODUCT_ID			0x00
 #define PAW3395_REG_REVISION_ID			0x01
-#define PAW3395_REG_MOTION			0x02
+#define PAW3395_REG_MOTION			  0x02
 #define PAW3395_REG_DELTA_X_L			0x03
 #define PAW3395_REG_DELTA_X_H			0x04
 #define PAW3395_REG_DELTA_Y_L			0x05
 #define PAW3395_REG_DELTA_Y_H			0x06
-#define PAW3395_REG_SQUAL			0x07
+#define PAW3395_REG_SQUAL			    0x07
 #define PAW3395_REG_RAW_DATA_SUM		0x08
 #define PAW3395_REG_MAXIMUM_RAW_DATA		0x09
 #define PAW3395_REG_MINIMUM_RAW_DATA		0x0A
 #define PAW3395_REG_SHUTTER_LOWER		0x0B
 #define PAW3395_REG_SHUTTER_UPPER		0x0C
-#define PAW3395_REG_CONTROL			0x0D
-#define PAW3395_REG_CONFIG1			0x0F
-#define PAW3395_REG_CONFIG2			0x10
-#define PAW3395_REG_ANGLE_TUNE			0x11
-#define PAW3395_REG_FRAME_CAPTURE		0x12
-#define PAW3395_REG_SROM_ENABLE			0x13
-#define PAW3395_REG_RUN_DOWNSHIFT		0x14
-#define PAW3395_REG_REST1_RATE_LOWER		0x15
-#define PAW3395_REG_REST1_RATE_UPPER		0x16
-#define PAW3395_REG_REST1_DOWNSHIFT		0x17
-#define PAW3395_REG_REST2_RATE_LOWER		0x18
-#define PAW3395_REG_REST2_RATE_UPPER		0x19
-#define PAW3395_REG_REST2_DOWNSHIFT		0x1A
-#define PAW3395_REG_REST3_RATE_LOWER		0x1B
-#define PAW3395_REG_REST3_RATE_UPPER		0x1C
-#define PAW3395_REG_OBSERVATION			0x24
-#define PAW3395_REG_DATA_OUT_LOWER		0x25
-#define PAW3395_REG_DATA_OUT_UPPER		0x26
-#define PAW3395_REG_RAW_DATA_DUMP		0x29
-#define PAW3395_REG_SROM_ID			0x2A
-#define PAW3395_REG_MIN_SQ_RUN			0x2B
-#define PAW3395_REG_RAW_DATA_THRESHOLD		0x2C
-#define PAW3395_REG_CONFIG5			0x2F
+
+#define PAW3395_REG_OBSERVATION			0x15
+#define PAW3395_REG_MOTION_BURST		0x16
+
+// power-up reset and shutdown registers
 #define PAW3395_REG_POWER_UP_RESET		0x3A
-#define PAW3395_REG_SHUTDOWN			0x3B
-#define PAW3395_REG_INVERSE_PRODUCT_ID		0x3F
-#define PAW3395_REG_LIFTCUTOFF_TUNE3		0x41
-#define PAW3395_REG_ANGLE_SNAP			0x42
-#define PAW3395_REG_LIFTCUTOFF_TUNE1		0x4A
-#define PAW3395_REG_MOTION_BURST		0x50
-#define PAW3395_REG_LIFTCUTOFF_TUNE_TIMEOUT	0x58
-#define PAW3395_REG_LIFTCUTOFF_TUNE_MIN_LENGTH	0x5A
-#define PAW3395_REG_SROM_LOAD_BURST		0x62
-#define PAW3395_REG_LIFT_CONFIG			0x63
-#define PAW3395_REG_RAW_DATA_BURST		0x64
-#define PAW3395_REG_LIFTCUTOFF_TUNE2		0x65
+#define PAW3395_REG_SHUTDOWN			    0x3B
+
+// rest mode register
+#define PAW3395_REG_PERFORMANCE 0x40
+
+// resolution/cpi registers
+#define PAW3395_REG_SET_RESOLUTION         0x47
+#define PAW3395_REG_RESOLUTION_X_LOW       0x48
+#define PAW3395_REG_RESOLUTION_X_HIGH      0x49
+#define PAW3395_REG_RESOLUTION_Y_LOW       0x4A
+#define PAW3395_REG_RESOLUTION_Y_HIGH      0x4B
+
+// other registers
+#define PAW3395_REG_ANGLE_SNAP      0x56
+#define PAW3395_REG_RAWDATA_OUTPUT  0x58
+#define PAW3395_REG_RAWDATA_STATUS  0x59
+#define PAW3395_REG_RIPPLE_CONTROL  0x5A
+#define PAW3395_REG_AXIS_CONTROL    0x5B
+#define PAW3395_REG_MOTION_CONTROL  0x5C
+#define PAW3395_REG_INVERSE_PRODUCT_ID		0x5F
+
+// rest mode related
+#define PAW3395_REG_RUN_DOWNSHIFT		0x77
+#define PAW3395_REG_REST1_PERIOD		0x78
+#define PAW3395_REG_REST1_DOWNSHIFT	0x79
+#define PAW3395_REG_REST2_PERIOD		0x7A
+#define PAW3395_REG_REST2_DOWNSHIFT	0x7B
+#define PAW3395_REG_REST3_PERIOD		0x7C
+#define PAW3395_REG_RUN_DOWNSHIFT_MULT  0x7D
+#define PAW3395_REG_REST_DOWNSHIFT_MULT 0x7E
+
+// the following registers need special setting procedure
+#define PAW3395_REG_ANGLE_TUNE1_H			0x05
+#define PAW3395_REG_ANGLE_TUNE1_L			0x77
+#define PAW3395_REG_ANGLE_TUNE2_H			0x05
+#define PAW3395_REG_ANGLE_TUNE2_L			0x78
+#define PAW3395_REG_LIFT_CONFIG_H			0x0C
+#define PAW3395_REG_LIFT_CONFIG_L			0x4E
+
+// the mode register is used in run mode selection
+#define PAW3395_REG_RUN_MODE   0x40
 
 /* Sensor identification values */
-#define PAW3395_PRODUCT_ID			0x42
-#define PAW3395_FIRMWARE_ID			0x04
+#define PAW3395_PRODUCT_ID			0x51
 
 /* Max register count readable in a single motion burst */
 #define PAW3395_MAX_BURST_SIZE			12
@@ -89,13 +99,16 @@ LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 #define PAW3395_DX_POS				2
 #define PAW3395_DY_POS				4
 
-/* Rest_En position in Config2 register. */
-#define PAW3395_REST_EN_POS			5
+/* Rest_En position in Performance register. */
+#define PAW3395_REST_EN_POS			7
 
-#define PAW3395_MAX_CPI				12000
-#define PAW3395_MIN_CPI				100
+/* cpi/resolution range */
+#define PAW3395_MAX_CPI				26000
+#define PAW3395_MIN_CPI				50
+#define PAW3395_SET_RESOLUTION_CMD 0x01
+#define PAW3395_RIPPLE_CONTROL_EN_POS 7
 
-
+/* write command bit position */
 #define SPI_WRITE_BIT				BIT(7)
 
 /* Helper macros used to convert sensor values. */
@@ -104,16 +117,32 @@ LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 #define PAW3395_SVALUE_TO_BOOL(svalue) ((svalue).val1 != 0)
 
 
-/* SROM firmware meta-data, defined in paw3395_piv.c */
-extern const size_t paw3395_firmware_length;
-extern const uint8_t paw3395_firmware_data[];
+/* setting registers, defined in paw3395_priv.c */
+extern const size_t paw3395_pwrup_registers_length1;
+extern const uint8_t paw3395_pwrup_registers_addr1[];
+extern const uint8_t paw3395_pwrup_registers_data1[];
+extern const size_t paw3395_pwrup_registers_length2;
+extern const uint8_t paw3395_pwrup_registers_addr2[];
+extern const uint8_t paw3395_pwrup_registers_data2[];
 
 
-/* sensor initialization steps definition */
-// init is done in non-blocking manner (i.e., async), a delayable work is defined for this job
-// see paw3395_init and paw3395_async_init)
+extern const size_t paw3395_mode_registers_length[];
+extern const uint8_t* paw3395_mode_registers_addr[];
 
-// delay (ms) in between steps, MCU is allowed to do other tasks
+//////// Sensor initialization steps definition //////////
+// init is done in non-blocking manner (i.e., async), a //
+// delayable work is defined for this purpose           //
+  enum paw3395_init_step {
+    ASYNC_INIT_STEP_POWER_UP, // reset cs line and assert power-up reset
+    ASYNC_INIT_STEP_LOAD_SETTING, // load register setting
+    ASYNC_INIT_STEP_CONFIGURE, // set other registes like cpi and donwshift time (run, rest1, rest2) and clear motion registers
+
+    ASYNC_INIT_STEP_COUNT // end flag
+  };
+
+/* Timings (in ms) needed in between steps to allow each step finishes succussfully. */
+// - Since MCU is not involved in the sensor init process, i is allowed to do other tasks.
+//   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 50, // required in spec
 	[ASYNC_INIT_STEP_LOAD_SETTING]    = 5,  // required in spec
@@ -129,6 +158,8 @@ static int (* const async_init_fn[ASYNC_INIT_STEP_COUNT])(const struct device *d
 	[ASYNC_INIT_STEP_LOAD_SETTING] = paw3395_async_init_load_setting,
 	[ASYNC_INIT_STEP_CONFIGURE] = paw3395_async_init_configure,
 };
+
+//////// Function definitions //////////
 
 // checked and keep
 static int spi_cs_ctrl(const struct device *dev, bool enable)
@@ -151,6 +182,7 @@ static int spi_cs_ctrl(const struct device *dev, bool enable)
 
 	return err;
 }
+
 
 // checked and keep
 static int reg_read(const struct device *dev, uint8_t reg, uint8_t *buf)
@@ -336,72 +368,151 @@ static int motion_burst_read(const struct device *dev, uint8_t *buf,
 }
 
 /** Writing an array of registers in sequence, used in power-up register initialization and running mode switching */
-// this impl is totally new, different from pmw3360
-static int burst_write(const struct device *dev, uint8_t *addr, const uint8_t *buf,
-		       size_t size)
+static int burst_write(const struct device *dev, uint8_t *addr, const uint8_t *buf, size_t size)
 {
 	int err;
 	struct paw3395_data *data = dev->data;
 	const struct paw3395_config *config = dev->config;
 
-	/* Write address of burst register */
-	uint8_t write_buf = reg | SPI_WRITE_BIT;
-	struct spi_buf tx_buf = {
-		.buf = &write_buf,
-		.len = 1
-	};
-	const struct spi_buf_set tx = {
-		.buffers = &tx_buf,
-		.count = 1
-	};
-
-	err = spi_cs_ctrl(dev, true);
-	if (err) {
-		return err;
-	}
-
-	err = spi_write_dt(&config->bus, &tx);
-	if (err) {
-		LOG_ERR("Burst write failed on SPI write");
-		return err;
-	}
-
 	/* Write data */
 	for (size_t i = 0; i < size; i++) {
-		write_buf = buf[i];
+    err = reg_write(dev, addr[i], buf[i]);
 
-		err = spi_write_dt(&config->bus, &tx);
 		if (err) {
 			LOG_ERR("Burst write failed on SPI write (data)");
 			return err;
 		}
-
-		k_busy_wait(T_BRSEP);
 	}
 
-	/* Terminate burst mode. */
-	err = spi_cs_ctrl(dev, false);
-	if (err) {
-		return err;
-	}
-
-  // todo: better keep it (no requirement in datasheet)?
-	k_busy_wait(T_BEXIT);
-
-	data->last_read_burst = false;
+	/* data->last_read_burst = false; */
 
 	return 0;
 }
 
-static int update_cpi(const struct device *dev, uint32_t cpi)
+static int set_run_mode(const struct device *dev, enum paw3395_run_mode run_mode)
 {
-	/* Set resolution with CPI step of 100 cpi
-	 * 0x00: 100 cpi (minimum cpi)
-	 * 0x01: 200 cpi
+  int err;
+  uint32_t mode_idx = (uint32_t)run_mode;
+
+  if(mode_idx >= RUN_MODE_COUNT) {
+		LOG_ERR("Unknown attribute");
+		return -ENOTSUP;
+  }
+
+  // stage 1: write a series of registers
+  err = burst_write(dev, paw3395_mode_registers_addr[mode_idx],\
+                    paw3395_mode_registers_data[mode_idx],\
+                    paw3395_mode_registers_length[mode_idx]);
+
+  // stage 2: read run_mode register and set corresponding bits
+	uint8_t value;
+  if(mode_idx == GAME_MODE) {
+    value = 0x83;
+  }
+  else{
+    err = reg_read(dev, PAW3395_REG_RUN_MODE, &value);
+    if (err) {
+      LOG_ERR("Failed to read RUN_MODE register");
+      return err;
+    }
+  }
+
+  switch (mode_idx) {
+  case HP_MODE:
+    WRITE_BIT(value, 0, 0);
+    WRITE_BIT(value, 1, 0);
+    LOG_INF("Enable high-performance mode");
+    break;
+  case LP_MODE:
+    WRITE_BIT(value, 0, 1);
+    WRITE_BIT(value, 1, 0);
+    LOG_INF("Enable low-performance mode");
+    break;
+  case OFFICE_MODE:
+    WRITE_BIT(value, 0, 0);
+    WRITE_BIT(value, 1, 1);
+    LOG_INF("Enable office mode");
+    break;
+  case GAME_MODE:
+    LOG_INF("Enable gaming mode");
+    break;
+  default:
+		LOG_ERR("Unknown RUN mode");
+		return -ENOTSUP;
+  }
+
+  // stage 3: write back to run_mode register
+	err = reg_write(dev, PAW3395_REG_RUN_MODE, value);
+	if (err) {
+		LOG_ERR("Failed to set run mode");
+	}
+  return err;
+}
+
+static int upload_pwrup_settings(const struct device *dev)
+{
+  LOG_INF("");
+
+  // stage 1: configure the first 137 registers
+  int err;
+  err = burst_write(dev, paw3395_pwrup_registers_addr1, \
+                    paw3395_pwrup_registers_data1, paw3395_pwrup_registers_length1);
+  if(err) {
+    LOG_ERR("Can't setting first group of registers");
+    return err;
+  }
+
+  // stage 2: read register 0x6C at 1ms interval until value 0x80 is returned
+  //          or timeout after 60 times
+  uint8_t value == 0x00;
+  int count = 0;
+  while( count < 60 ) {
+    // wait for 1ms befor read (timing accuracy 1% is required)
+    k_msleep(1);
+
+    if (reg_read(dev, 0x6C, &value)) {
+      LOG_ERR("Failed to read register 0x6C");
+      return err;
+    }
+
+    if( value == 0x80 )
+      break;
+  }
+
+  // do some setting if 0x80 is not returned within 60 poll
+  if( value != 0x80 ) {
+    LOG_INF("vale 0x80 is not returned within 60 poll times");
+    uint8_t addr[] = {0x7F, 0x6C, 0x7F};
+    uint8_t data[] = {0x14, 0x00, 0x00};
+
+    err = burst_write(dev, addr, data, 3);
+    if(err) {
+      LOG_ERR("Can't setting the backup registers");
+      return err;
+    }
+  }
+
+  // stage 3: configure the remaining 5 rigisters
+  err = burst_write(dev, paw3395_pwrup_registers_addr2,\
+                    paw3395_pwrup_registers_data2, paw3395_pwrup_registers_length2);
+  if(err) {
+    LOG_ERR("Can't setting the second group of registers");
+    return err;
+  }
+
+  return 0;
+}
+
+/* set cpi (x, y seperately) */
+static int set_cpi(const struct device *dev, uint32_t xcpi, uint32_t ycpi)
+{
+	/* Set resolution with CPI step of 50 cpi
+	 * 0x0000: 50 cpi (minimum cpi)
+	 * 0x0001: 100 cpi
 	 * :
-	 * 0x31: 5000 cpi (default cpi)
+	 * 0x0063: 5000 cpi (default cpi)
 	 * :
-	 * 0x77: 12000 cpi (maximum cpi)
+	 * 0x0207: 26000 cpi (maximum cpi)
 	 */
 
 	if ((cpi > PAW3395_MAX_CPI) || (cpi < PAW3395_MIN_CPI)) {
@@ -409,22 +520,102 @@ static int update_cpi(const struct device *dev, uint32_t cpi)
 		return -EINVAL;
 	}
 
-	/* Convert CPI to register value */
-	uint8_t value = (cpi / 100) - 1;
+  /* set x cpi */
+	// Convert CPI to register value
+	uint16_t value = (xcpi / 50) - 1;
+	LOG_INF("Setting X-CPI to %u (reg value 0x%x)", xcpi, value);
 
-	LOG_INF("Setting CPI to %u (reg value 0x%x)", cpi, value);
+  // seperate the two bytes
+	uint8_t buf[2];
+	sys_put_le16(value, buf);
 
-	int err = reg_write(dev, PAW3395_REG_CONFIG1, value);
+  // upload the new value 
+  uint8_t addr[2] = {PAW3395_REG_RESOLUTION_X_LOW, PAW3395_REG_RESOLUTION_X_HIGH};
+	int err = burst_write(dev, addr, buf, 2);
 	if (err) {
-		LOG_ERR("Failed to change CPI");
+		LOG_ERR("Failed to upload X CPI");
+	}
+
+  /* set y cpi */
+	value = (ycpi / 50) - 1;
+	LOG_INF("Setting Y-CPI to %u (reg value 0x%x)", ycpi, value);
+
+	sys_put_le16(value, buf);
+  addr[2] = {PAW3395_REG_RESOLUTION_Y_LOW, PAW3395_REG_RESOLUTION_Y_HIGH};
+
+  err = burst_write(dev, addr, buf, 2);
+	if (err) {
+		LOG_ERR("Failed to upload Y CPI");
+	}
+
+  /* set the cpi */
+  if ( xcpi > 9000 || ycpi > 9000 ) {
+    LOG_INF("Enable ripple control, since cpi is too large");
+
+    err = reg_read(dev, PAW3395_REG_RIPPLE_CONTROL, buf);
+    if (err) {
+      LOG_ERR("Failed to read RIPPLE_CONTROL register");
+      return err;
+    }
+
+    WRITE_BIT(buf[0], PAW3395_RIPPLE_CONTROL_EN_POS, 1);
+    err = reg_write(dev, PAW3395_REG_RIPPLE_CONTROL, buf[0]);
+    if (err) {
+      LOG_ERR("Failed to enable ripple control");
+    }
+  }
+
+  /* set the cpi */
+	err = reg_write(dev, PAW3395_REG_SET_RESOLUTION, 0x01);
+	if (err) {
+		LOG_ERR("Failed to set CPI");
 	}
 
 	return err;
 }
 
-/* unit: ms */
-static int update_downshift_time(const struct device *dev, uint8_t reg_addr,
-				 uint32_t time)
+/* set sampling rate in each mode (in ms) */
+// This function is implemented to be able to change the sample period of each rest mode.
+// However, only rest1 sample period is exposed to end user and customizable through CONFIG_PAW3395_REST_SAMPLE_TIME_MS
+// Sample periods in rest2 and rest3 are hard-coded (using the defaut value currently: 100ms and 504ms respectively)
+static int set_sample_time(const struct device *dev,
+			      uint8_t reg_addr_lower,
+			      uint8_t reg_addr_upper,
+			      uint32_t sample_time)
+{
+	/* Set sample time for the Rest1-Rest3 modes.
+	 * Values above 0x09B0 will trigger internal watchdog reset.
+	 */
+	uint32_t maxtime = 0x9B0;
+	uint32_t mintime = 1;
+
+	if ((sample_time > maxtime) || (sample_time < mintime)) {
+		LOG_WRN("Sample time %u out of range", sample_time);
+		return -EINVAL;
+	}
+
+	LOG_INF("Set sample time to %u ms", sample_time);
+
+	/* The sample time is (reg_value + 1) ms. */
+	sample_time--;
+	uint8_t buf[2];
+
+	sys_put_le16((uint16_t)sample_time, buf);
+
+	int err = reg_write(dev, reg_addr_lower, buf[0]);
+
+	if (!err) {
+		err = reg_write(dev, reg_addr_upper, buf[1]);
+	} else {
+		LOG_ERR("Failed to change sample time");
+	}
+
+	return err;
+}
+
+
+
+static int set_downshift_time(const struct device *dev, uint8_t reg_addr, uint32_t time)
 {
 	/* Set downshift time in ms:
 	 * - Run downshift time (from Run to Rest1 mode), default: 500ms
@@ -437,7 +628,7 @@ static int update_downshift_time(const struct device *dev, uint8_t reg_addr,
 	switch (reg_addr) {
 	case PAW3395_REG_RUN_DOWNSHIFT:
 		/*
-		 * Run downshift time = PAW3395_REG_RUN_DOWNSHIFT * 10 ms
+		 * Run downshift time = PAW3395_REG_RUN_DOWNSHIFT * 256 * 0.05 ms
 		 */
 		maxtime = 2550;
 		mintime = 10;
@@ -486,54 +677,18 @@ static int update_downshift_time(const struct device *dev, uint8_t reg_addr,
 	return err;
 }
 
-/* set sampling rate in each mode (in ms) */
-static int update_sample_time(const struct device *dev,
-			      uint8_t reg_addr_lower,
-			      uint8_t reg_addr_upper,
-			      uint32_t sample_time)
-{
-	/* Set sample time for the Rest1-Rest3 modes.
-	 * Values above 0x09B0 will trigger internal watchdog reset.
-	 */
-	uint32_t maxtime = 0x9B0;
-	uint32_t mintime = 1;
-
-	if ((sample_time > maxtime) || (sample_time < mintime)) {
-		LOG_WRN("Sample time %u out of range", sample_time);
-		return -EINVAL;
-	}
-
-	LOG_INF("Set sample time to %u ms", sample_time);
-
-	/* The sample time is (reg_value + 1) ms. */
-	sample_time--;
-	uint8_t buf[2];
-
-	sys_put_le16((uint16_t)sample_time, buf);
-
-	int err = reg_write(dev, reg_addr_lower, buf[0]);
-
-	if (!err) {
-		err = reg_write(dev, reg_addr_upper, buf[1]);
-	} else {
-		LOG_ERR("Failed to change sample time");
-	}
-
-	return err;
-}
-
-static int toggle_rest_modes(const struct device *dev, uint8_t reg_addr,
-			     bool enable)
+static int set_rest_mode(const struct device *dev, bool enable)
 {
 	uint8_t value;
-	int err = reg_read(dev, reg_addr, &value);
+	int err = reg_read(dev, PAW3395_REG_PERFORMANCE, &value);
 
 	if (err) {
-		LOG_ERR("Failed to read Config2 register");
+		LOG_ERR("Failed to read PERFORMANCE register");
 		return err;
 	}
 
-	WRITE_BIT(value, PAW3395_REST_EN_POS, enable);
+  // be aware: 0 is enable, 1 is disable
+	WRITE_BIT(value, PAW3395_REST_EN_POS, !enable);
 
 	LOG_INF("%sable rest modes", (enable) ? ("En") : ("Dis"));
 	err = reg_write(dev, reg_addr, value);
@@ -644,22 +799,26 @@ static int paw3395_async_init_configure(const struct device *dev)
 {
 	int err;
 
-	err = update_cpi(dev, CONFIG_PAW3395_CPI);
+  // cpi
+	err = set_cpi(dev, CONFIG_PAW3395_CPI);
 
+  //todo: rest1 sample period, which affects scaling of rest1 downshift time
+
+  // downshift time for each rest mode
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_RUN_DOWNSHIFT,
 					    CONFIG_PAW3395_RUN_DOWNSHIFT_TIME_MS);
 	}
 
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_REST1_DOWNSHIFT,
 					    CONFIG_PAW3395_REST1_DOWNSHIFT_TIME_MS);
 	}
 
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_REST2_DOWNSHIFT,
 					    CONFIG_PAW3395_REST2_DOWNSHIFT_TIME_MS);
 	}
@@ -911,52 +1070,31 @@ static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
 
 	switch ((uint32_t)attr) {
 	case PAW3395_ATTR_CPI:
-		err = update_cpi(dev, PAW3395_SVALUE_TO_CPI(*val));
+		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val));
 		break;
 
 	case PAW3395_ATTR_REST_ENABLE:
-		err = toggle_rest_modes(dev,
+		err = set_rest_modes(dev,
 					PAW3395_REG_CONFIG2,
 					PAW3395_SVALUE_TO_BOOL(*val));
 		break;
 
 	case PAW3395_ATTR_RUN_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_RUN_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
 	case PAW3395_ATTR_REST1_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_REST1_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
 	case PAW3395_ATTR_REST2_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PAW3395_REG_REST2_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	case PAW3395_ATTR_REST1_SAMPLE_TIME:
-		err = update_sample_time(dev,
-					 PAW3395_REG_REST1_RATE_LOWER,
-					 PAW3395_REG_REST1_RATE_UPPER,
-					 PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	case PAW3395_ATTR_REST2_SAMPLE_TIME:
-		err = update_sample_time(dev,
-					 PAW3395_REG_REST2_RATE_LOWER,
-					 PAW3395_REG_REST2_RATE_UPPER,
-					 PAW3395_SVALUE_TO_TIME(*val));
-		break;
-
-	case PAW3395_ATTR_REST3_SAMPLE_TIME:
-		err = update_sample_time(dev,
-					 PAW3395_REG_REST3_RATE_LOWER,
-					 PAW3395_REG_REST3_RATE_UPPER,
-					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
 	default:
