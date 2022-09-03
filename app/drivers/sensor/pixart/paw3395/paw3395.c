@@ -390,11 +390,29 @@ static int burst_write(const struct device *dev, const uint8_t *addr, const uint
 	return 0;
 }
 
+static int check_product_id(const struct device *dev)
+{
+	uint8_t product_id=0x01;
+	int err = reg_read(dev, PAW3395_REG_PRODUCT_ID, &product_id);
+	if (err) {
+		LOG_ERR("Cannot obtain product id");
+		return err;
+	}
+
+	if (product_id != PAW3395_PRODUCT_ID) {
+		LOG_ERR("Incorrect product id 0x%x (expecting 0x%x)!", product_id, PAW3395_PRODUCT_ID);
+		return -EIO;
+	}
+
+  return 0;
+}
+
 static int upload_pwrup_settings(const struct device *dev)
 {
-  LOG_INF("");
+  LOG_INF("Upload firmware settings...");
 
   // stage 1: configure the first 137 registers
+  LOG_INF("stag 1: upload the first 137 registers");
   int err;
   err = burst_write(dev, paw3395_pwrup_registers_addr1, \
                     paw3395_pwrup_registers_data1, paw3395_pwrup_registers_length1);
@@ -405,24 +423,30 @@ static int upload_pwrup_settings(const struct device *dev)
 
   // stage 2: read register 0x6C at 1ms interval until value 0x80 is returned
   //          or timeout after 60 times
+  LOG_INF("stag 2: poll until 0x80 returned");
   uint8_t value = 0;
   int count = 0;
   while( count < 60 ) {
+
     // wait for 1ms befor read (timing accuracy 1% is required)
-    k_msleep(1);
+    k_busy_wait(1000);
+    /* k_msleep(1); */
 
     if (reg_read(dev, 0x6C, &value)) {
       LOG_ERR("Failed to read register 0x6C");
       return err;
     }
+    LOG_DBG("%d poll returns 0x%x", count+1, value);
 
     if( value == 0x80 )
       break;
+
+    count++;
   }
 
   // do some setting if 0x80 is not returned within 60 poll
   if( value != 0x80 ) {
-    LOG_INF("vale 0x80 is not returned within 60 poll times");
+    LOG_INF("value 0x80 is not returned within 60 polls, use alternative setting");
     uint8_t addr[] = {0x7F, 0x6C, 0x7F};
     uint8_t data[] = {0x14, 0x00, 0x00};
 
@@ -434,6 +458,7 @@ static int upload_pwrup_settings(const struct device *dev)
   }
 
   // stage 3: configure the remaining 5 rigisters
+  LOG_INF("stag 3: upload the remaining 5 registers");
   err = burst_write(dev, paw3395_pwrup_registers_addr2,\
                     paw3395_pwrup_registers_data2, paw3395_pwrup_registers_length2);
   if(err) {
@@ -442,17 +467,14 @@ static int upload_pwrup_settings(const struct device *dev)
   }
 
   // stage 4: check the product id
-	uint8_t product_id;
-	err = reg_read(dev, PAW3395_REG_PRODUCT_ID, &product_id);
+  LOG_INF("stag 4: confirm the setting by checking the product id");
+	err = check_product_id(dev);
 	if (err) {
-		LOG_ERR("Cannot obtain product id");
+		LOG_ERR("Failed checking product id");
 		return err;
 	}
 
-	if (product_id != PAW3395_PRODUCT_ID) {
-		LOG_ERR("Invalid product id!");
-		return -EIO;
-	}
+  LOG_INF("Upload power-up register settins done");
 
   return 0;
 }
@@ -609,10 +631,11 @@ static int set_sample_time(const struct device *dev, uint8_t reg_addr, uint32_t 
 		return -EINVAL;
 	}
 
-	LOG_INF("Set sample time to %u ms", sample_time);
+  uint8_t value = sample_time / mintime;
+	LOG_INF("Set sample time to %u ms (reg value: 0x%x)", sample_time, value);
 
 	/* The sample time is (reg_value * mintime ) ms. 0x00 is rounded to 0x1 */
-  int err = reg_write(dev, reg_addr, (uint8_t)(sample_time / mintime));
+  int err = reg_write(dev, reg_addr, value);
 	if (!err) {
 		LOG_ERR("Failed to change sample time");
 	}
@@ -786,7 +809,9 @@ static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
 
 static int paw3395_async_init_power_up(const struct device *dev)
 {
-  /* needed? Reset spi port */
+  LOG_INF("async_init_power_up");
+
+  /* needed or not? Reset spi port */
   spi_cs_ctrl(dev, false);
   spi_cs_ctrl(dev, true);
 
@@ -796,16 +821,15 @@ static int paw3395_async_init_power_up(const struct device *dev)
 
 static int paw3395_async_init_load_setting(const struct device *dev)
 {
-	int err;
+	LOG_INF("async_init_load_setting");
 
-	LOG_INF("Uploading optical sensor firmware...");
-  err = upload_pwrup_settings(dev);
-
-	return err;
+  return upload_pwrup_settings(dev);
 }
 
 static int paw3395_async_init_configure(const struct device *dev)
 {
+  LOG_INF("async_init_configure");
+
 	int err;
 
   // run mode
@@ -887,7 +911,7 @@ static void paw3395_async_init(struct k_work *work)
 						 init_work);
 	const struct device *dev = data->dev;
 
-	LOG_DBG("PAW3395 async init step %d", data->async_init_step);
+	LOG_INF("PAW3395 async init step %d", data->async_init_step);
 
 	data->err = async_init_fn[data->async_init_step](dev);
 	if (data->err) {
@@ -900,8 +924,7 @@ static void paw3395_async_init(struct k_work *work)
 			LOG_INF("PAW3395 initialized");
 		} else {
 			k_work_schedule(&data->init_work,
-					K_MSEC(async_init_delay[
-						data->async_init_step]));
+					K_MSEC(async_init_delay[data->async_init_step]));
 		}
 	}
 }
@@ -930,6 +953,8 @@ static void irq_handler(const struct device *gpiob, struct gpio_callback *cb,
 
 static void trigger_handler(struct k_work *work)
 {
+  LOG_DBG("trigger_handler");
+
 	sensor_trigger_handler_t handler;
 	int err = 0;
 	struct pixart_data *data = CONTAINER_OF(work, struct pixart_data,
@@ -945,6 +970,7 @@ static void trigger_handler(struct k_work *work)
 	k_spin_unlock(&data->lock, key);
 
 	if (!handler) {
+    LOG_DBG("no trigger handler set by application code");
 		return;
 	}
 
@@ -972,6 +998,8 @@ static void trigger_handler(struct k_work *work)
 
 static int paw3395_init_irq(const struct device *dev)
 {
+  LOG_INF("Configure irq...");
+
 	int err;
 	struct pixart_data *data = dev->data;
 	const struct pixart_config *config = dev->config;
@@ -998,11 +1026,15 @@ static int paw3395_init_irq(const struct device *dev)
 		LOG_ERR("Cannot add IRQ GPIO callback");
 	}
 
+  LOG_INF("Configure irq done");
+
 	return err;
 }
 
 static int paw3395_init(const struct device *dev)
 {
+  LOG_INF("Start initializing...");
+
 	struct pixart_data *data = dev->data;
 	const struct pixart_config *config = dev->config;
 	int err;
@@ -1128,6 +1160,8 @@ static int paw3395_trigger_set(const struct device *dev,
 			       const struct sensor_trigger *trig,
 			       sensor_trigger_handler_t handler)
 {
+  LOG_INF("trigger_set");
+
 	struct pixart_data *data = dev->data;
 	const struct pixart_config *config = dev->config;
 	int err;

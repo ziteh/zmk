@@ -179,6 +179,8 @@ void trackball_timer_stop(struct k_timer *timer) {
 // In this applaication, the devcie instance 'trackball' is hard-coded as the first
 // pixart_pmw3360 node in dts file and used implicitly here.
 static int trackball_init() {
+  LOG_INF("Init trackball_new");
+
   // get the sensor device instance
   const struct device *dev = DEVICE_DT_GET(DT_DRV_INST(0));
 	struct pixart_data *data = dev->data;
