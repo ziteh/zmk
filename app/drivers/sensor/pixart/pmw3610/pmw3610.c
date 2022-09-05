@@ -899,8 +899,8 @@ static int pmw3610_sample_fetch(const struct device *dev, enum sensor_channel ch
     /* int16_t y = (buf[PMW3610_Y_L_POS] */
     /*              + ((int16_t)((buf[PMW3610_XY_H_POS] & 0x0F) << 8))) */
     /*              / CONFIG_PMW3610_CPI_DIVIDOR; */
-    int16_t x = TOINT16((buf[PMW3610_X_L_POS] + ((buf[PMW3610_XY_H_POS] & 0xF0) << 4)),12);
-    int16_t y = TOINT16((buf[PMW3610_Y_L_POS] + ((buf[PMW3610_XY_H_POS] & 0x0F) << 8)),12);
+    int16_t x = TOINT16((buf[PMW3610_X_L_POS] + ((buf[PMW3610_XY_H_POS] & 0xF0) << 4)),12) / CONFIG_PMW3610_CPI_DIVIDOR;
+    int16_t y = TOINT16((buf[PMW3610_Y_L_POS] + ((buf[PMW3610_XY_H_POS] & 0x0F) << 8)),12) / CONFIG_PMW3610_CPI_DIVIDOR;
 
 		if (IS_ENABLED(CONFIG_PMW3610_ORIENTATION_0)) {
 			data->x = x;

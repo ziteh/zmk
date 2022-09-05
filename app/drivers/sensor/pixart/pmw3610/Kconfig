@@ -22,7 +22,7 @@ config PMW3610_SMART_ALGORITHM
 
 config PMW3610_CPI
 	int "PMW3610's default CPI"
-	default 1600
+	default 2400
 	range 200 3200
 	help
 	  Default CPI value, with 200 step
