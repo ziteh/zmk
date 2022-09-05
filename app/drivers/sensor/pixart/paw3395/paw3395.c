@@ -89,6 +89,9 @@ LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 /* Sensor identification values */
 #define PAW3395_PRODUCT_ID			0x51
 
+/* Power-up register commands */
+#define PAW3395_POWERUP_CMD_RESET  0x5A
+
 /* Max register count readable in a single motion burst */
 #define PAW3395_MAX_BURST_SIZE			12
 
@@ -747,54 +750,54 @@ static int paw3395_attr_set(const struct device *dev, enum sensor_channel chan,
 	}
 
 	switch ((uint32_t)attr) {
-	case PIXART_ATTR_XCPI:
+	case PAW3395_ATTR_X_CPI:
 		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), true);
 		break;
-	case PIXART_ATTR_YCPI:
+	case PAW3395_ATTR_Y_CPI:
 		err = set_cpi(dev, PAW3395_SVALUE_TO_CPI(*val), false);
 		break;
 
-	case PIXART_ATTR_REST_ENABLE:
+	case PAW3395_ATTR_REST_ENABLE:
 		err = set_rest_mode(dev, PAW3395_SVALUE_TO_BOOL(*val));
 		break;
 
-	case PIXART_ATTR_RUN_DOWNSHIFT_TIME:
+	case PAW3395_ATTR_RUN_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_RUN_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST1_DOWNSHIFT_TIME:
+	case PAW3395_ATTR_REST1_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_REST1_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST2_DOWNSHIFT_TIME:
+	case PAW3395_ATTR_REST2_DOWNSHIFT_TIME:
 		err = set_downshift_time(dev,
 					    PAW3395_REG_REST2_DOWNSHIFT,
 					    PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST1_SAMPLE_TIME:
+	case PAW3395_ATTR_REST1_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST1_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST2_SAMPLE_TIME:
+	case PAW3395_ATTR_REST2_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST2_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST3_SAMPLE_TIME:
+	case PAW3395_ATTR_REST3_SAMPLE_TIME:
 		err = set_sample_time(dev,
 					 PAW3395_REG_REST3_PERIOD,
 					 PAW3395_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_RUN_MODE:
+	case PAW3395_ATTR_RUN_MODE:
 		err = set_run_mode(dev,
            PAW3395_SVALUE_TO_RUNMODE(*val));
 		break;
@@ -816,7 +819,7 @@ static int paw3395_async_init_power_up(const struct device *dev)
   spi_cs_ctrl(dev, true);
 
 	/* Reset sensor */
-	return reg_write(dev, PAW3395_REG_POWER_UP_RESET, 0x5A);
+	return reg_write(dev, PAW3395_REG_POWER_UP_RESET, PAW3395_POWERUP_CMD_RESET);
 }
 
 static int paw3395_async_init_load_setting(const struct device *dev)

@@ -4,6 +4,9 @@
 #elif defined(CONFIG_PAW3395)
 #define DT_DRV_COMPAT pixart_paw3395
 #include <pixart/paw3395/paw3395.h>
+#elif defined(CONFIG_PMW3610)
+#define DT_DRV_COMPAT pixart_pmw3610
+#include <pixart/pmw3610/pmw3610.h>
 #endif
 
 #include <logging/log.h>

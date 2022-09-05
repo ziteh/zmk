@@ -44,6 +44,9 @@ extern "C" {
        the following work and timer maybe used in application code */
     struct k_work                poll_work;
     struct k_timer               poll_timer;
+
+    // for pmw3610 smart algorithm
+    bool                         sw_smart_flag;
   };
 
   // device config data structure
