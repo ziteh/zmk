@@ -405,7 +405,7 @@ static int burst_write(const struct device *dev, uint8_t reg, const uint8_t *buf
 	return 0;
 }
 
-static int update_cpi(const struct device *dev, uint32_t cpi)
+static int set_cpi(const struct device *dev, uint32_t cpi)
 {
 	/* Set resolution with CPI step of 100 cpi
 	 * 0x00: 100 cpi (minimum cpi)
@@ -435,7 +435,7 @@ static int update_cpi(const struct device *dev, uint32_t cpi)
 }
 
 /* unit: ms */
-static int update_downshift_time(const struct device *dev, uint8_t reg_addr,
+static int set_downshift_time(const struct device *dev, uint8_t reg_addr,
 				 uint32_t time)
 {
 	/* Set downshift time in ms:
@@ -499,7 +499,7 @@ static int update_downshift_time(const struct device *dev, uint8_t reg_addr,
 }
 
 /* set sampling rate in each mode (in ms) */
-static int update_sample_time(const struct device *dev,
+static int set_sample_time(const struct device *dev,
 			      uint8_t reg_addr_lower,
 			      uint8_t reg_addr_upper,
 			      uint32_t sample_time)
@@ -534,7 +534,7 @@ static int update_sample_time(const struct device *dev,
 	return err;
 }
 
-static int toggle_rest_modes(const struct device *dev, uint8_t reg_addr,
+static int set_rest_modes(const struct device *dev, uint8_t reg_addr,
 			     bool enable)
 {
 	uint8_t value;
@@ -732,22 +732,22 @@ static int pmw3360_async_init_configure(const struct device *dev)
 {
 	int err;
 
-	err = update_cpi(dev, CONFIG_PMW3360_CPI);
+	err = set_cpi(dev, CONFIG_PMW3360_CPI);
 
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PMW3360_REG_RUN_DOWNSHIFT,
 					    CONFIG_PMW3360_RUN_DOWNSHIFT_TIME_MS);
 	}
 
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PMW3360_REG_REST1_DOWNSHIFT,
 					    CONFIG_PMW3360_REST1_DOWNSHIFT_TIME_MS);
 	}
 
 	if (!err) {
-		err = update_downshift_time(dev,
+		err = set_downshift_time(dev,
 					    PMW3360_REG_REST2_DOWNSHIFT,
 					    CONFIG_PMW3360_REST2_DOWNSHIFT_TIME_MS);
 	}
@@ -997,50 +997,50 @@ static int pmw3360_attr_set(const struct device *dev, enum sensor_channel chan,
 	}
 
 	switch ((uint32_t)attr) {
-	case PIXART_ATTR_CPI:
-		err = update_cpi(dev, PMW3360_SVALUE_TO_CPI(*val));
+	case PMW3360_ATTR_CPI:
+		err = set_cpi(dev, PMW3360_SVALUE_TO_CPI(*val));
 		break;
 
-	case PIXART_ATTR_REST_ENABLE:
-		err = toggle_rest_modes(dev,
+	case PMW3360_ATTR_REST_ENABLE:
+		err = set_rest_modes(dev,
 					PMW3360_REG_CONFIG2,
 					PMW3360_SVALUE_TO_BOOL(*val));
 		break;
 
-	case PIXART_ATTR_RUN_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+	case PMW3360_ATTR_RUN_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
 					    PMW3360_REG_RUN_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST1_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+	case PMW3360_ATTR_REST1_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
 					    PMW3360_REG_REST1_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST2_DOWNSHIFT_TIME:
-		err = update_downshift_time(dev,
+	case PMW3360_ATTR_REST2_DOWNSHIFT_TIME:
+		err = set_downshift_time(dev,
 					    PMW3360_REG_REST2_DOWNSHIFT,
 					    PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST1_SAMPLE_TIME:
-		err = update_sample_time(dev,
+	case PMW3360_ATTR_REST1_SAMPLE_TIME:
+		err = set_sample_time(dev,
 					 PMW3360_REG_REST1_RATE_LOWER,
 					 PMW3360_REG_REST1_RATE_UPPER,
 					 PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST2_SAMPLE_TIME:
-		err = update_sample_time(dev,
+	case PMW3360_ATTR_REST2_SAMPLE_TIME:
+		err = set_sample_time(dev,
 					 PMW3360_REG_REST2_RATE_LOWER,
 					 PMW3360_REG_REST2_RATE_UPPER,
 					 PMW3360_SVALUE_TO_TIME(*val));
 		break;
 
-	case PIXART_ATTR_REST3_SAMPLE_TIME:
-		err = update_sample_time(dev,
+	case PMW3360_ATTR_REST3_SAMPLE_TIME:
+		err = set_sample_time(dev,
 					 PMW3360_REG_REST3_RATE_LOWER,
 					 PMW3360_REG_REST3_RATE_UPPER,
 					 PMW3360_SVALUE_TO_TIME(*val));
