@@ -639,7 +639,7 @@ static int set_sample_time(const struct device *dev, uint8_t reg_addr, uint32_t 
 
 	/* The sample time is (reg_value * mintime ) ms. 0x00 is rounded to 0x1 */
   int err = reg_write(dev, reg_addr, value);
-	if (!err) {
+	if (err) {
 		LOG_ERR("Failed to change sample time");
 	}
 

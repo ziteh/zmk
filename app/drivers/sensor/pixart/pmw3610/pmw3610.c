@@ -7,6 +7,7 @@
 #define DT_DRV_COMPAT pixart_pmw3610
 
 // 12-bit two's complement value to int16_t
+// adapted from https://stackoverflow.com/questions/70802306/convert-a-12-bit-signed-number-in-c
 #define TOINT16(val, bits) (((struct {int16_t value: bits;}){val}).value)
 
 #include <kernel.h>
@@ -127,7 +128,7 @@ enum pmw3610_init_step {
 //   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 0,
-	[ASYNC_INIT_STEP_CLEAR_OB1]        = 50,  // 150 us, rounded to 1 ms
+	[ASYNC_INIT_STEP_CLEAR_OB1]        = 50,  // 150 us required, test shows too short, also power-up reset is added in this step, thus using 50 ms
 	[ASYNC_INIT_STEP_CHECK_OB1]        = 10,  // required in spec
 	[ASYNC_INIT_STEP_CONFIGURE]        = 0,
 };
@@ -449,7 +450,7 @@ static int set_sample_time(const struct device *dev, uint8_t reg_addr, uint32_t 
 
 	/* The sample time is (reg_value * mintime ) ms. 0x00 is rounded to 0x1 */
   int err = reg_write(dev, reg_addr, value);
-	if (!err) {
+	if (err) {
 		LOG_ERR("Failed to change sample time");
 	}
 
@@ -590,9 +591,8 @@ static int pmw3610_async_init_power_up(const struct device *dev)
   spi_cs_ctrl(dev, false);
   spi_cs_ctrl(dev, true);
 
-	/* to be tested: not required in datashet Reset sensor */
+	/* not required in datashet, but added any way to have a clear state */
 	return reg_write(dev, PMW3610_REG_POWER_UP_RESET, PMW3610_POWERUP_CMD_RESET);
-  /* return 0; */
 }
 
 static int pmw3610_async_init_clear_ob1(const struct device *dev)
@@ -893,12 +893,6 @@ static int pmw3610_sample_fetch(const struct device *dev, enum sensor_channel ch
 	int err = motion_burst_read(dev, buf, sizeof(buf));
 
 	if (!err) {
-    /* int16_t x = (buf[PMW3610_X_L_POS] */
-    /*              + ((int16_t)((buf[PMW3610_XY_H_POS] & 0xF0) << 4))) */
-    /*              / CONFIG_PMW3610_CPI_DIVIDOR; */
-    /* int16_t y = (buf[PMW3610_Y_L_POS] */
-    /*              + ((int16_t)((buf[PMW3610_XY_H_POS] & 0x0F) << 8))) */
-    /*              / CONFIG_PMW3610_CPI_DIVIDOR; */
     int16_t x = TOINT16((buf[PMW3610_X_L_POS] + ((buf[PMW3610_XY_H_POS] & 0xF0) << 4)),12) / CONFIG_PMW3610_CPI_DIVIDOR;
     int16_t y = TOINT16((buf[PMW3610_Y_L_POS] + ((buf[PMW3610_XY_H_POS] & 0x0F) << 8)),12) / CONFIG_PMW3610_CPI_DIVIDOR;
 
