@@ -199,12 +199,14 @@ static int trackball_init() {
   };
 
   int err;
+  int count = 0;
 	do {
     err = sensor_trigger_set(dev, &trigger, trackball_trigger_handler);
 		if (err == -EBUSY) {
-			k_sleep(K_MSEC(1));
+      count++;
+			k_sleep(K_MSEC(10));
 		}
-	} while (err == -EBUSY);
+	} while (err == -EBUSY && count < 50);
 
 	if (err) {
 		LOG_ERR("Cannot enable trigger");

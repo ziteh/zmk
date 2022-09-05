@@ -6,6 +6,9 @@
 
 #define DT_DRV_COMPAT pixart_pmw3610
 
+// 12-bit two's complement value to int16_t
+#define TOINT16(val, bits) (((struct {int16_t value: bits;}){val}).value)
+
 #include <kernel.h>
 #include <sys/byteorder.h>
 #include "pmw3610.h"
@@ -123,8 +126,8 @@ enum pmw3610_init_step {
 // - Since MCU is not involved in the sensor init process, i is allowed to do other tasks.
 //   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
-	[ASYNC_INIT_STEP_POWER_UP]         = 50,
-	[ASYNC_INIT_STEP_CLEAR_OB1]        = 1,  // 150 us, rounded to 1 ms
+	[ASYNC_INIT_STEP_POWER_UP]         = 0,
+	[ASYNC_INIT_STEP_CLEAR_OB1]        = 50,  // 150 us, rounded to 1 ms
 	[ASYNC_INIT_STEP_CHECK_OB1]        = 10,  // required in spec
 	[ASYNC_INIT_STEP_CONFIGURE]        = 0,
 };
@@ -588,8 +591,8 @@ static int pmw3610_async_init_power_up(const struct device *dev)
   spi_cs_ctrl(dev, true);
 
 	/* to be tested: not required in datashet Reset sensor */
-	/* return reg_write(dev, PMW3610_REG_POWER_UP_RESET, PMW3610_POWERUP_CMD_RESET); */
-  return 0;
+	return reg_write(dev, PMW3610_REG_POWER_UP_RESET, PMW3610_POWERUP_CMD_RESET);
+  /* return 0; */
 }
 
 static int pmw3610_async_init_clear_ob1(const struct device *dev)
@@ -610,7 +613,7 @@ static int pmw3610_async_init_check_ob1(const struct device *dev)
     return err;
   }
 
-  if( (value & BIT_MASK(3)) != 0x0F ) {
+  if( (value & 0x0F) != 0x0F ) {
     LOG_ERR("Failed self-test (0x%x)", value);
     return -EINVAL;
   }
@@ -890,12 +893,14 @@ static int pmw3610_sample_fetch(const struct device *dev, enum sensor_channel ch
 	int err = motion_burst_read(dev, buf, sizeof(buf));
 
 	if (!err) {
-    int16_t x = (buf[PMW3610_X_L_POS]
-                 + ((int16_t)((buf[PMW3610_XY_H_POS] & 0xF0) << 4)))
-                 / CONFIG_PMW3610_CPI_DIVIDOR;
-    int16_t y = (buf[PMW3610_Y_L_POS]
-                 + ((int16_t)((buf[PMW3610_XY_H_POS] & 0x0F) << 8)))
-                 / CONFIG_PMW3610_CPI_DIVIDOR;
+    /* int16_t x = (buf[PMW3610_X_L_POS] */
+    /*              + ((int16_t)((buf[PMW3610_XY_H_POS] & 0xF0) << 4))) */
+    /*              / CONFIG_PMW3610_CPI_DIVIDOR; */
+    /* int16_t y = (buf[PMW3610_Y_L_POS] */
+    /*              + ((int16_t)((buf[PMW3610_XY_H_POS] & 0x0F) << 8))) */
+    /*              / CONFIG_PMW3610_CPI_DIVIDOR; */
+    int16_t x = TOINT16((buf[PMW3610_X_L_POS] + ((buf[PMW3610_XY_H_POS] & 0xF0) << 4)),12);
+    int16_t y = TOINT16((buf[PMW3610_Y_L_POS] + ((buf[PMW3610_XY_H_POS] & 0x0F) << 8)),12);
 
 		if (IS_ENABLED(CONFIG_PMW3610_ORIENTATION_0)) {
 			data->x = x;
