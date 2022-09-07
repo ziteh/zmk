@@ -127,9 +127,9 @@ enum pmw3610_init_step {
 // - Since MCU is not involved in the sensor init process, i is allowed to do other tasks.
 //   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
-	[ASYNC_INIT_STEP_POWER_UP]         = 0,
+	[ASYNC_INIT_STEP_POWER_UP]         = 1, //wain a short time before init
 	[ASYNC_INIT_STEP_CLEAR_OB1]        = 50,  // 150 us required, test shows too short, also power-up reset is added in this step, thus using 50 ms
-	[ASYNC_INIT_STEP_CHECK_OB1]        = 10,  // required in spec
+	[ASYNC_INIT_STEP_CHECK_OB1]        = 20,  // 10 ms required in spec, change it to 20 ms for certainty
 	[ASYNC_INIT_STEP_CONFIGURE]        = 0,
 };
 
