@@ -37,9 +37,9 @@ LOG_MODULE_REGISTER(il0323, CONFIG_DISPLAY_LOG_LEVEL);
 #define IL0323_BUSY_PIN DT_INST_GPIO_PIN(0, busy_gpios)
 #define IL0323_BUSY_CNTRL DT_INST_GPIO_LABEL(0, busy_gpios)
 #define IL0323_BUSY_FLAGS DT_INST_GPIO_FLAGS(0, busy_gpios)
-#define IL0323_RESET_PIN DT_INST_GPIO_PIN(0, reset_gpios)
-#define IL0323_RESET_CNTRL DT_INST_GPIO_LABEL(0, reset_gpios)
-#define IL0323_RESET_FLAGS DT_INST_GPIO_FLAGS(0, reset_gpios)
+/* #define IL0323_RESET_PIN DT_INST_GPIO_PIN(0, reset_gpios) */
+/* #define IL0323_RESET_CNTRL DT_INST_GPIO_LABEL(0, reset_gpios) */
+/* #define IL0323_RESET_FLAGS DT_INST_GPIO_FLAGS(0, reset_gpios) */
 
 #define EPD_PANEL_WIDTH DT_INST_PROP(0, width)
 #define EPD_PANEL_HEIGHT DT_INST_PROP(0, height)
@@ -283,11 +283,11 @@ static int il0323_controller_init(const struct device *dev) {
 
     LOG_DBG("");
 
-    gpio_pin_set(driver->reset, IL0323_RESET_PIN, 1);
-    k_msleep(IL0323_RESET_DELAY);
-    gpio_pin_set(driver->reset, IL0323_RESET_PIN, 0);
-    k_msleep(IL0323_RESET_DELAY);
-    il0323_busy_wait(driver);
+    /* gpio_pin_set(driver->reset, IL0323_RESET_PIN, 1); */
+    /* k_msleep(IL0323_RESET_DELAY); */
+    /* gpio_pin_set(driver->reset, IL0323_RESET_PIN, 0); */
+    /* k_msleep(IL0323_RESET_DELAY); */
+    /* il0323_busy_wait(driver); */
 
     LOG_DBG("Initialize IL0323 controller");
 
@@ -380,13 +380,13 @@ static int il0323_init(const struct device *dev) {
     driver->spi_config.slave = DT_INST_REG_ADDR(0);
     driver->spi_config.cs = NULL;
 
-    driver->reset = device_get_binding(IL0323_RESET_CNTRL);
-    if (driver->reset == NULL) {
-        LOG_ERR("Could not get GPIO port for IL0323 reset");
-        return -EIO;
-    }
+    /* driver->reset = device_get_binding(IL0323_RESET_CNTRL); */
+    /* if (driver->reset == NULL) { */
+    /*     LOG_ERR("Could not get GPIO port for IL0323 reset"); */
+    /*     return -EIO; */
+    /* } */
 
-    gpio_pin_configure(driver->reset, IL0323_RESET_PIN, GPIO_OUTPUT_INACTIVE | IL0323_RESET_FLAGS);
+    /* gpio_pin_configure(driver->reset, IL0323_RESET_PIN, GPIO_OUTPUT_INACTIVE | IL0323_RESET_FLAGS); */
 
     driver->dc = device_get_binding(IL0323_DC_CNTRL);
     if (driver->dc == NULL) {
