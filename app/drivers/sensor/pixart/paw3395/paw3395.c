@@ -13,6 +13,14 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(paw3395, CONFIG_PAW3395_LOG_LEVEL);
 
+// The following claim needs more support from tests, comment out at the moment
+/* /\* It is observed that sensors should be initialized before the diplay drivers. */
+/* *  Here, we assure the correct sequence in the build time. */
+/* *  Setting sensor priority to 80 in the shield conf file shall be fine *\/ */
+/* BUILD_ASSERT(CONFIG_SENSOR_INIT_PRIORITY < CONFIG_APPLICATION_INIT_PRIORITY, */
+/*              "CONFIG_SENSOR_INIT_PRIORITY must be less than CONFIG_APPLICATION_INIT_PRIORITY.\ */
+/* Try setting the sensor priority to 80"); */
+
 /* Timings (in us) used in SPI communication. Since MCU should not do other tasks during wait, k_busy_wait is used instead of k_sleep */
 // - sub-us time is rounded to us, due to the limitation of k_busy_wait, see : https://github.com/zephyrproject-rtos/zephyr/issues/6498
 #define T_NCS_SCLK	1			/* 120 ns (rounded to 1us) */
