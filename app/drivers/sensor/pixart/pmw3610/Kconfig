@@ -22,14 +22,14 @@ config PMW3610_SMART_ALGORITHM
 
 config PMW3610_CPI
 	int "PMW3610's default CPI"
-	default 2400
+	default 3200
 	range 200 3200
 	help
 	  Default CPI value, with 200 step
 
 config PMW3610_CPI_DIVIDOR
 	int "PMW3610's default CPI dividor"
-	default 4
+	default 6
 	range 1 100
 	help
 	  Default CPI dividor value.
