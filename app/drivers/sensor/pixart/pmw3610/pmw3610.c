@@ -128,7 +128,7 @@ enum pmw3610_init_step {
 //   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
 	[ASYNC_INIT_STEP_POWER_UP]         = 5, // test shows > 5ms needed
-	[ASYNC_INIT_STEP_CLEAR_OB1]        = 50,  // 150 us required, test shows too short,
+	[ASYNC_INIT_STEP_CLEAR_OB1]        = 100,  // 150 us required, test shows too short,
                                             // also power-up reset is added in this step,                                               thus using 50 ms
 	[ASYNC_INIT_STEP_CHECK_OB1]        = 50,  // 10 ms required in spec,
                                             // test shows too short,\
