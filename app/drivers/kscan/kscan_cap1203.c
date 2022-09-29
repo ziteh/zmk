@@ -63,7 +63,8 @@ static int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t reg, \
     return err;
   }
 
-  WRITE_BIT(reg, pos, enable);
+  WRITE_BIT(val, pos, enable);
+
   return i2c_reg_write_byte_dt(i2c, reg, val);
 }
 
@@ -87,6 +88,7 @@ static int kscan_cap1203_clear_interrupt(const struct i2c_dt_spec *i2c)
 	}
 
 	ctrl = ctrl & ~CONTROL_INT;
+
 	return i2c_reg_write_byte_dt(i2c, REG_MAIN_CONTROL, ctrl);
 }
 
