@@ -16,8 +16,9 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 
+/* List of important registers and associated commands */
 #define REG_MAIN_CONTROL 0x0
 #define CONTROL_INT 0x1
 
@@ -27,7 +28,10 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #define INTERRUPT_ENABLE 0x7
 #define INTERRUPT_DISABLE 0x0
 
+#define CONFIGURATION_2 0x44
+#define RELEASE_INT_POS 0
 
+/* device driver data */
 struct kscan_cap1203_config {
 	struct i2c_dt_spec i2c;
 	struct gpio_dt_spec int_gpio;
@@ -47,6 +51,29 @@ struct kscan_cap1203_data {
 	struct k_timer timer;
 #endif
 };
+
+/* Write a single bit in a register without touching other bits */
+static int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t reg, \
+                                   uint8_t pos, bool enable)
+{
+  uint8_t val;
+  int err;
+
+  if(err=i2c_reg_read_byte_dt(i2c, reg, &val)) {
+    return err;
+  }
+
+  WRITE_BIT(reg, pos, enable);
+  return i2c_reg_write_byte_dt(i2c, reg, val);
+}
+
+/* Enable/disable generation of release interrupt */
+static int kscan_cap1203_enable_release_interrupt(const struct i2c_dt_spec *i2c,\
+                                                  bool enable)
+{
+  return kscan_cap1203_bit_write(i2c, CONFIGURATION_2, RELEASE_INT_POS, !enable);
+}
+
 
 /* De-assert alert line and clear the sensor status input register */
 static int kscan_cap1203_clear_interrupt(const struct i2c_dt_spec *i2c)
@@ -298,6 +325,13 @@ static int kscan_cap1203_init(const struct device *dev)
 		}
 	}
 #endif
+
+  // other configuration
+  r = kscan_cap1203_enable_release_interrupt(&config->i2c, false);
+  if(r) {
+    LOG_ERR("Could not disable release interrupt");
+    return r;
+  }
 
   LOG_INF("Init success");
 
