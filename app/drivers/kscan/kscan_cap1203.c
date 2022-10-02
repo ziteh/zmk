@@ -40,6 +40,11 @@ LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 #define REPEAT_ENABLE 0x7
 #define REPEAT_DISABLE 0x0
 
+#define REG_MULT_CONFIG 0x2A
+#define MULT_BLK_EN_POS 7
+#define B_MULT_T1_POS   3
+#define B_MULT_T0_POS 2
+
 #define REG_CONFIGURATION_2 0x44
 #define RELEASE_INT_POS 0
 
@@ -126,6 +131,40 @@ static inline int kscan_cap1203_check_firmware(const struct device *dev)
   return 0;
 }
 
+/* Config multiple touch circuitry */
+inline static int kscan_cap1203_configure_multiple_touch(const struct i2c_dt_spec *i2c, \
+                                                         bool enable, \
+                                                         int num)
+{
+  uint8_t val=0;
+
+  if(enable) {
+    WRITE_BIT(val, MULT_BLK_EN_POS, 1);
+
+    switch (num) {
+    case 1:
+      WRITE_BIT(val, B_MULT_T1_POS, 0);
+      WRITE_BIT(val, B_MULT_T0_POS, 0);
+      break;
+    case 2:
+      WRITE_BIT(val, B_MULT_T1_POS, 0);
+      WRITE_BIT(val, B_MULT_T0_POS, 1);
+      break;
+    case 3:
+      WRITE_BIT(val, B_MULT_T1_POS, 1);
+      WRITE_BIT(val, B_MULT_T0_POS, 0);
+      break;
+    default:
+      LOG_ERR("Number of channels is out of range: max=3");
+      return -EINVAL;
+    }
+  }
+  else {
+    WRITE_BIT(val, MULT_BLK_EN_POS, 0);
+  }
+
+  return i2c_reg_write_byte_dt(i2c, REG_MULT_CONFIG, val);
+}
 /* Enable/disable generation of release interrupt */
 static int kscan_cap1203_enable_release_interrupt(const struct i2c_dt_spec *i2c,\
                                                   bool enable)
@@ -375,17 +414,24 @@ static int kscan_cap1203_init(const struct device *dev)
 	}
 #endif
 
-  // enable release interrupt
+  // configure release interrupt
   r = kscan_cap1203_enable_release_interrupt(&config->i2c, true);
   if(r) {
-    LOG_ERR("Could not disable release interrupt");
+    LOG_ERR("Could not configure release interrupt");
     return r;
   }
 
-  // disable repeat interrupt
+  // configure repeat interrupt
 	r = i2c_reg_write_byte_dt(&config->i2c, REG_REPEAT_ENABLE, REPEAT_DISABLE);
 	if (r < 0) {
-    LOG_ERR("Could not disable repeat-rate interrupt");
+    LOG_ERR("Could not configure repeat-rate interrupt");
+		return r;
+	}
+
+  // configure multi-touch circuitry
+  r = kscan_cap1203_configure_multiple_touch(&config->i2c, true, 3);
+	if (r < 0) {
+    LOG_ERR("Could not configure multi-touch circuitry");
 		return r;
 	}
 
