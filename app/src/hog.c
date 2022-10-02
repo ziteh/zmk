@@ -309,6 +309,8 @@ void send_mouse_report_callback(struct k_work *work) {
 K_WORK_DEFINE(hog_mouse_work, send_mouse_report_callback);
 
 int zmk_hog_send_mouse_report(struct zmk_hid_mouse_report_body *report) {
+  LOG_DBG("send mouse report using shared queue");
+
     int err = k_msgq_put(&zmk_hog_mouse_msgq, report, K_NO_WAIT);
     if (err) {
         switch (err) {
@@ -328,6 +330,8 @@ int zmk_hog_send_mouse_report(struct zmk_hid_mouse_report_body *report) {
 };
 
 int zmk_hog_send_mouse_report_direct(struct zmk_hid_mouse_report_body *report) {
+  LOG_DBG("send mouse report directly");
+
     struct bt_conn *conn = destination_connection();
     if (conn == NULL) {
         return 1;

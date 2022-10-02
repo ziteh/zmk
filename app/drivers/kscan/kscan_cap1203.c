@@ -19,16 +19,28 @@
 LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 
 /* List of important registers and associated commands */
+#define REG_PRODUCT_ID 0xFD
+#define PRODUCT_ID 0x6D
+#define REG_VENDOR_ID 0xFE
+#define VENDOR_ID 0x5D
+#define REG_REVISION 0xFF
+#define REVISION_ID 0x00
+
 #define REG_MAIN_CONTROL 0x0
 #define CONTROL_INT 0x1
 
+#define REG_GENERAL_STATUS 0x02
 #define REG_INPUT_STATUS 0x03
 
 #define REG_INTERRUPT_ENABLE 0x27
 #define INTERRUPT_ENABLE 0x7
 #define INTERRUPT_DISABLE 0x0
 
-#define CONFIGURATION_2 0x44
+#define REG_REPEAT_ENABLE 0x28
+#define REPEAT_ENABLE 0x7
+#define REPEAT_DISABLE 0x0
+
+#define REG_CONFIGURATION_2 0x44
 #define RELEASE_INT_POS 0
 
 /* device driver data */
@@ -41,19 +53,33 @@ struct kscan_cap1203_data {
 	struct device *dev;
 	kscan_callback_t callback;
 	struct k_work work; // actual processing work
-  struct k_work_delayable release_work_a;
-  struct k_work_delayable release_work_b;
-  struct k_work_delayable release_work_c;
 	/* Interrupt GPIO callback. */
 	struct gpio_callback int_gpio_cb;
 #if USE_POLLING
 	/* Timer (polling mode). */
 	struct k_timer timer;
 #endif
+
+  uint8_t touch_state;
 };
 
+/* Functions and variables for debugging usage */
+#ifdef CONFIG_ZMK_USB_LOGGING
+static inline void print_register(const struct i2c_dt_spec *i2c, uint8_t reg, const char* prefix)
+{
+  uint8_t status;
+	int err = i2c_reg_read_byte_dt(i2c, reg, &status);
+	if (err < 0) {
+    LOG_ERR("Debug can's read register: 0x%x", reg);
+		return;
+	}
+	LOG_INF("%s: register 0x%x = 0x%x", prefix, reg, status);
+  return;
+}
+#endif
+
 /* Write a single bit in a register without touching other bits */
-static int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t reg, \
+static inline int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t reg, \
                                    uint8_t pos, bool enable)
 {
   uint8_t val;
@@ -63,16 +89,48 @@ static int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t reg, \
     return err;
   }
 
-  WRITE_BIT(val, pos, enable);
+  if( enable )
+    WRITE_BIT(val, pos, 1);
+  else
+    WRITE_BIT(val, pos, 0);
 
   return i2c_reg_write_byte_dt(i2c, reg, val);
+}
+
+/* Check the status of the sensor by comparing the vid, revision and pid with the datasheet */
+static inline int kscan_cap1203_check_firmware(const struct device *dev)
+{
+	const struct kscan_cap1203_config *config = dev->config;
+
+  uint8_t val;
+  int err;
+
+  if(err=i2c_reg_read_byte_dt(&config->i2c, REG_PRODUCT_ID, &val)) {
+    LOG_INF("Can't read register: product id");
+    return err;
+  }
+  else if( val != PRODUCT_ID ) {
+    LOG_INF("Unequal product id 0x%x (expected: 0x%x)", val, PRODUCT_ID);
+    return -EIO;
+  }
+
+  if(err=i2c_reg_read_byte_dt(&config->i2c, REG_VENDOR_ID, &val)) {
+    LOG_INF("Can't read register: vendor id");
+    return err;
+  }
+  else if( val != VENDOR_ID ) {
+    LOG_INF("Unequal vendor id 0x%x (expected: 0x%x)", val, VENDOR_ID);
+    return -EIO;
+  }
+
+  return 0;
 }
 
 /* Enable/disable generation of release interrupt */
 static int kscan_cap1203_enable_release_interrupt(const struct i2c_dt_spec *i2c,\
                                                   bool enable)
 {
-  return kscan_cap1203_bit_write(i2c, CONFIGURATION_2, RELEASE_INT_POS, !enable);
+  return kscan_cap1203_bit_write(i2c, REG_CONFIGURATION_2, RELEASE_INT_POS, !enable);
 }
 
 
@@ -100,6 +158,24 @@ static int kscan_cap1203_enable_interrupt(const struct i2c_dt_spec *i2c, bool en
 	return i2c_reg_write_byte_dt(i2c, REG_INTERRUPT_ENABLE, intr);
 }
 
+/* determine the press status based on latest sensor input */
+// arg1 new_input: the current status input register value
+// arg2 ch: the sensor channel to be tested
+// arg3 pressed: whether the state change is pressed or released
+// return: true if there is state change, otherwise false
+inline static bool kscan_cap1203_change_state(uint8_t *old_input,  \
+                                              uint8_t *new_input, \
+                                              int  ch, \
+                                              bool *pressed)
+{
+
+  if((*old_input & BIT(ch) ) != (*new_input & BIT(ch))) {
+    *pressed = *new_input & BIT(ch);
+    return true;
+  }
+  return false;
+}
+
 /* read the current touch status */
 static int kscan_cap1203_read(const struct device *dev)
 {
@@ -109,74 +185,50 @@ static int kscan_cap1203_read(const struct device *dev)
 	uint8_t input;
 	bool pressed;
 
-  /* todo: release previus presses if not yet released */
-  /* k_work_flush_delayable(&data->release_work_a, NULL); */
-  /* k_work_flush_delayable(&data->release_work_b, NULL); */
-  /* k_work_flush_delayable(&data->release_work_c, NULL); */
+  // read general status
+#ifdef CONFIG_ZMK_USB_LOGGING
+  print_register(&config->i2c, REG_GENERAL_STATUS, "General Status");
+  print_register(&config->i2c, REG_CONFIGURATION_2, "CONFIGURATION_2");
+#endif
 
+  // read sensor input status
 	r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &input);
 	if (r < 0) {
 		return r;
 	}
+	LOG_INF("Initial input status: 0x%x (old: 0x%x)", input, data->touch_state);
 
-  //
-	LOG_INF("event: input: %d", input);
-	pressed = !!input; // !! can turn an arbitraty integer into 1 or 0
+  // check the state change, only pressed event can be discovered at this stage
+  for( int ch=0; ch < 3; ch++ ) {
+    if(kscan_cap1203_change_state(&data->touch_state, &input, ch, &pressed)) {
+      data->callback(dev, 0, ch, pressed);
+      LOG_INF("Pad %d %s", ch+1, pressed ? "pressed" : "released");
+    }
+  }
 
-	if (input & BIT(2)) {
-    data->callback(dev, 0, 2, pressed);
-
-    LOG_INF("scheduled to release for button c");
-    k_work_schedule(&data->release_work_c, K_MSEC(1));
-	}
-	if (input & BIT(1)) {
-    data->callback(dev, 0, 1, pressed);
-
-    LOG_INF("scheduled to release for button b");
-    k_work_schedule(&data->release_work_b, K_MSEC(1));
-	}
-	if (input & BIT(0)) {
-    data->callback(dev, 0, 0, pressed);
-
-    LOG_INF("scheduled to release for button a");
-    k_work_schedule(&data->release_work_a, K_MSEC(1));
-	}
-
-
-	/*
-	 * Clear INT bit to clear SENSOR INPUT STATUS bits.
-	 * Note that this is also required in polling mode.
-	 */
+	// Clear INT bit to clear SENSOR INPUT STATUS bits and dis-claim interrupt line
 	r = kscan_cap1203_clear_interrupt(&config->i2c);
 	if (r < 0) {
 		return r;
 	}
 
+  // read sensor input status again, this time to discover release event
+	r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &data->touch_state);
+	if (r < 0) {
+		return r;
+	}
+	LOG_INF("Input status after clearing: 0x%x (old: 0x%x)", data->touch_state, input);
+
+  // if interrput is triggered by release, there will be state change after claering
+  for( int ch=0; ch < 3; ch++ ) {
+    if(kscan_cap1203_change_state(&input, &data->touch_state, ch, &pressed)) {
+      data->callback(dev, 0, ch, pressed);
+      LOG_INF("Pad %d %s", ch+1, pressed ? "pressed" : "released");
+    }
+  }
+  LOG_INF("");
+
 	return 0;
-}
-
-static void kscan_cap1203_release_handler_a(struct k_work *work)
-{
-	struct kscan_cap1203_data *data = CONTAINER_OF(work, struct kscan_cap1203_data, release_work_a);
-
-  data->callback(data->dev, 0, 0, false);
-  LOG_INF("rlease button a\n");
-}
-
-static void kscan_cap1203_release_handler_b(struct k_work *work)
-{
-	struct kscan_cap1203_data *data = CONTAINER_OF(work, struct kscan_cap1203_data, release_work_b);
-
-  data->callback(data->dev, 0, 1, false);
-  LOG_INF("rlease button b\n");
-}
-
-static void kscan_cap1203_release_handler_c(struct k_work *work)
-{
-	struct kscan_cap1203_data *data = CONTAINER_OF(work, struct kscan_cap1203_data, release_work_c);
-
-  data->callback(data->dev, 0, 2, false);
-  LOG_INF("rlease button c\n");
 }
 
 /* the actual work to process each alert or polling */
@@ -287,11 +339,6 @@ static int kscan_cap1203_init(const struct device *dev)
 
 	k_work_init(&data->work, kscan_cap1203_work_handler);
 
-	k_work_init_delayable(&data->release_work_a, kscan_cap1203_release_handler_a);
-	k_work_init_delayable(&data->release_work_b, kscan_cap1203_release_handler_b);
-	k_work_init_delayable(&data->release_work_c, kscan_cap1203_release_handler_c);
-
-
   // init alert interrupt pin or poll timer
 	if (config->int_gpio.port != NULL) {
 		if (!device_is_ready(config->int_gpio.port)) {
@@ -328,13 +375,21 @@ static int kscan_cap1203_init(const struct device *dev)
 	}
 #endif
 
-  // other configuration
-  r = kscan_cap1203_enable_release_interrupt(&config->i2c, false);
+  // enable release interrupt
+  r = kscan_cap1203_enable_release_interrupt(&config->i2c, true);
   if(r) {
     LOG_ERR("Could not disable release interrupt");
     return r;
   }
 
+  // disable repeat interrupt
+	r = i2c_reg_write_byte_dt(&config->i2c, REG_REPEAT_ENABLE, REPEAT_DISABLE);
+	if (r < 0) {
+    LOG_ERR("Could not disable repeat-rate interrupt");
+		return r;
+	}
+
+  // End of init
   LOG_INF("Init success");
 
 	return 0;
