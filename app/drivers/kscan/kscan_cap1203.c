@@ -66,7 +66,21 @@ struct kscan_cap1203_data {
 #endif
 
   uint8_t touch_state;
+
+#ifdef CONFIG_CAP1203_SLIDER_MODE || CONFIG_CAP1203_MIX_MODE
+  uint8_t slider_position;
+  int16_t delta_position;
+#endif
 };
+
+#ifdef CONFIG_CAP1203_SLIDER_MODE || CONFIG_CAP1203_MIX_MODE
+/* array of the status patterns, the array_index+1 is the position indicator */
+static uint8_t const slider_pattern[5] = {1, 3, 2, 6, 4};
+/* array of slider positions with slider pattern as array index */
+/* The position of unknown slider patterns is defined to be 0 */
+static uint8_t const slider_position[8] = {0, 1, 3, 2, 5, 0, 4, 0};
+static int     update_counter;
+#endif
 
 /* Functions and variables for debugging usage */
 #ifdef CONFIG_ZMK_USB_LOGGING
@@ -222,12 +236,14 @@ static int kscan_cap1203_read(const struct device *dev)
 	struct kscan_cap1203_data *data = dev->data;
 	int r;
 	uint8_t input;
+
+  LOG_INF("Beginning of ISR:");
+#ifdef CONFIG_CAP1203_BUTTON_MODE
 	bool pressed;
 
   // read general status
 #ifdef CONFIG_ZMK_USB_LOGGING
   print_register(&config->i2c, REG_GENERAL_STATUS, "General Status");
-  print_register(&config->i2c, REG_CONFIGURATION_2, "CONFIGURATION_2");
 #endif
 
   // read sensor input status
@@ -265,8 +281,67 @@ static int kscan_cap1203_read(const struct device *dev)
       LOG_INF("Pad %d %s", ch+1, pressed ? "pressed" : "released");
     }
   }
-  LOG_INF("");
 
+#elif defined(CONFIG_CAP1203_SLIDER_MODE)
+  // read general status
+#ifdef CONFIG_ZMK_USB_LOGGING
+  print_register(&config->i2c, REG_GENERAL_STATUS, "General Status");
+#endif
+
+  // First reading of sensor input status, only pressed info updated
+	r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &input);
+	if (r < 0) {
+		return r;
+	}
+
+  // Clear INT bit to update release info
+  r = kscan_cap1203_clear_interrupt(&config->i2c);
+  if (r < 0) {
+    return r;
+  }
+
+  // Get the updated status
+  update_counter++;
+  if(data->touch_state == 0) { // initial pos
+    LOG_INF("Update 1 status: 0x%x", input);
+  }
+  else { // later state change
+    // Second reading of sensor input status, which includes release info
+    r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &input);
+    if (r < 0) {
+      return r;
+    }
+    LOG_INF("Update %d status: 0x%x", update_counter, input);
+  }
+
+  // Process the slider pattern, unknown patterns are skipped
+  if(input && data->touch_state != 0) { // the first and last update should not be used
+    data->delta_position = slider_position[input] - data->slider_position;
+    if (data->delta_position != 0) {
+      // todo: callback to process the deltas
+    }
+    LOG_INF("Delta: %d", data->delta_position);
+  }
+
+  // book-keeping stuff
+  data->touch_state = input;
+
+  if(!input) { // reach the end of slide gesture
+    data->slider_position = 0;
+    data->delta_position = 0;
+    update_counter = 0;
+    LOG_INF("Last update");
+  }
+  else { // for all other updates before last one
+    // keep the current status for next update usage
+    data->slider_position = slider_position[input];
+  }
+
+#elif defined(CONFIG_CAP1203_MIX_MODE)
+
+#endif
+
+  LOG_INF("End of ISR.\n");
 	return 0;
 }
 
