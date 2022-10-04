@@ -7,7 +7,6 @@
 #define DT_DRV_COMPAT zmk_kscan_cap1203
 
 #define USE_POLLING IS_ENABLED(CONFIG_ZMK_KSCAN_CAP1203_POLL)
-#define USE_INTERRUPTS (!USE_POLLING)
 
 #include <kernel.h>
 #include <drivers/kscan.h>
@@ -56,30 +55,31 @@ struct kscan_cap1203_config {
 
 struct kscan_cap1203_data {
 	struct device *dev;
-	kscan_callback_t callback;
+	kscan_callback_t callback; // zmk's kscan callback
 	struct k_work work; // actual processing work
-	/* Interrupt GPIO callback. */
-	struct gpio_callback int_gpio_cb;
-#if USE_POLLING
-	/* Timer (polling mode). */
-	struct k_timer timer;
-#endif
+	struct gpio_callback int_gpio_cb; // alert gpio pin callback
+  uint8_t touch_state; // current sensor status
 
-  uint8_t touch_state;
-
-#ifdef CONFIG_CAP1203_SLIDER_MODE || CONFIG_CAP1203_MIX_MODE
+#if defined(CONFIG_CAP1203_MIX_MODE) || defined(CONFIG_CAP1203_SLIDER_MODE)
   uint8_t slider_position;
   int16_t delta_position;
+  int16_t acc_delta_position;
+  int     update_counter;
+#endif
+
+#ifdef CONFIG_CAP1203_MIX_MODE
+  bool is_slide; // slide or button manueover
+  uint8_t press_state; // accumulated sensor status at end of cycle
+  int64_t update_duration;
 #endif
 };
 
-#ifdef CONFIG_CAP1203_SLIDER_MODE || CONFIG_CAP1203_MIX_MODE
+#if defined(CONFIG_CAP1203_SLIDER_MODE) || defined(CONFIG_CAP1203_MIX_MODE)
 /* array of the status patterns, the array_index+1 is the position indicator */
 static uint8_t const slider_pattern[5] = {1, 3, 2, 6, 4};
 /* array of slider positions with slider pattern as array index */
 /* The position of unknown slider patterns is defined to be 0 */
 static uint8_t const slider_position[8] = {0, 1, 3, 2, 5, 0, 4, 0};
-static int     update_counter;
 #endif
 
 /* Functions and variables for debugging usage */
@@ -282,10 +282,20 @@ static int kscan_cap1203_read(const struct device *dev)
     }
   }
 
-#elif defined(CONFIG_CAP1203_SLIDER_MODE)
+#else // slider or mix mode
   // read general status
 #ifdef CONFIG_ZMK_USB_LOGGING
+  data->update_counter++;
   print_register(&config->i2c, REG_GENERAL_STATUS, "General Status");
+  if(!data->touch_state)
+    LOG_INF("Start of one cycle");
+#endif
+
+#ifdef CONFIG_CAP1203_MIX_MODE
+  // get cycle start time
+  if(data->touch_state == 0) {
+    data->update_duration = k_uptime_get();
+  }
 #endif
 
   // First reading of sensor input status, only pressed info updated
@@ -293,51 +303,94 @@ static int kscan_cap1203_read(const struct device *dev)
 	if (r < 0) {
 		return r;
 	}
-
   // Clear INT bit to update release info
   r = kscan_cap1203_clear_interrupt(&config->i2c);
   if (r < 0) {
     return r;
   }
-
-  // Get the updated status
-  update_counter++;
-  if(data->touch_state == 0) { // initial pos
-    LOG_INF("Update 1 status: 0x%x", input);
+  // Second reading of sensor input status, which includes release info
+  r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &input);
+  if (r < 0) {
+    return r;
   }
-  else { // later state change
-    // Second reading of sensor input status, which includes release info
-    r = i2c_reg_read_byte_dt(&config->i2c, REG_INPUT_STATUS, &input);
-    if (r < 0) {
-      return r;
-    }
-    LOG_INF("Update %d status: 0x%x", update_counter, input);
-  }
+  LOG_INF("Update %d status: 0x%x", data->update_counter, input);
 
   // Process the slider pattern, unknown patterns are skipped
-  if(input && data->touch_state != 0) { // the first and last update should not be used
-    data->delta_position = slider_position[input] - data->slider_position;
-    if (data->delta_position != 0) {
-      // todo: callback to process the deltas
+  if(input) { // skip last update
+
+#ifdef CONFIG_CAP1203_MIX_MODE
+    data->press_state |= input;
+#endif
+
+    if(data->touch_state != 0) { // also skip the first update for slider
+      data->delta_position = slider_position[input] - data->slider_position;
+      if (data->delta_position != 0) {
+#ifdef CONFIG_ZMK_USB_LOGGING
+        data->acc_delta_position += data->delta_position;
+#endif
+
+#ifdef CONFIG_CAP1203_MIX_MODE
+        if(!data->is_slide) {
+          data->is_slide = true;
+          LOG_INF("Discover slide movement!");
+        }
+#endif
+
+        // todo: callback to process the deltas
+      }
+      LOG_INF("Delta: %d", data->delta_position);
     }
-    LOG_INF("Delta: %d", data->delta_position);
   }
 
   // book-keeping stuff
   data->touch_state = input;
+  data->slider_position = slider_position[input];
 
   if(!input) { // reach the end of slide gesture
+#ifdef CONFIG_CAP1203_MIX_MODE
+    // calculate the cycle duration  in ms
+    data->update_duration = k_uptime_get() - data->update_duration;
+
+    if(data->is_slide) {
+      LOG_INF("End of one cycle. Slide manuover, total delta: %d", data->acc_delta_position);
+      data->is_slide = false;
+    }
+    else if( data->update_duration <= 200 ) { // send button tap
+      // todo: callback
+      LOG_INF("End of one cycle. Tap manuover, pressed buttons: %d", data->press_state);
+
+      // send press state
+      for(int i=0; i < 3; i++) {
+        if(BIT(i) & data->press_state) {
+          data->callback(dev, 0, i, true);
+        }
+      }
+
+      k_msleep(5);
+
+      // send release state
+      for(int i=0; i < 3; i++) {
+        if(BIT(i) & data->press_state) {
+          data->callback(dev, 0, i, false);
+        }
+      }
+
+      data->press_state = 0;
+    }
+    else
+      LOG_INF("End of one cycle. Cancelled slide manueover");
+#else
+      LOG_INF("End of one cycle. Total delta: %d", data->acc_delta_position);
+#endif
+
     data->slider_position = 0;
     data->delta_position = 0;
-    update_counter = 0;
-    LOG_INF("Last update");
+    data->acc_delta_position = 0;
+    data->update_counter = 0;
   }
   else { // for all other updates before last one
     // keep the current status for next update usage
-    data->slider_position = slider_position[input];
   }
-
-#elif defined(CONFIG_CAP1203_MIX_MODE)
 
 #endif
 

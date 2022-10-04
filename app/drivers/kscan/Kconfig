@@ -42,18 +42,6 @@ config ZMK_KSCAN_CAP1203
 
 if ZMK_KSCAN_CAP1203
 
-config ZMK_KSCAN_CAP1203_POLL
-	bool "Polling"
-	help
-	  Enable polling mode when interrupt GPIO is not specified.
-
-config ZMK_KSCAN_CAP1203_PERIOD
-	int "Sample period"
-	depends on ZMK_KSCAN_CAP1203_POLL
-	default 10
-	help
-	  Sample period in milliseconds when in polling mode.
-
 choice
   prompt "CAP1203 Touch-key Work Mode"
   help
