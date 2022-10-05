@@ -15,6 +15,12 @@
 
 #include <logging/log.h>
 
+#include <zmk/hid.h>
+#include <zmk/endpoints.h>
+#include <zmk/keymap.h>
+#include <zmk/mouse.h>
+#include <dt-bindings/zmk/mouse.h>
+
 LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 
 /* List of important registers and associated commands */
@@ -229,6 +235,20 @@ inline static bool kscan_cap1203_change_state(uint8_t *old_input,  \
   return false;
 }
 
+/* send scroll info */
+inline static void kscan_cap1203_update_scroll(int16_t delta, bool is_hoz)
+{
+  zmk_hid_mouse_scroll_set(0, 0);
+
+  int8_t scaled_delta = delta * 10;
+  if( is_hoz )
+    zmk_hid_mouse_scroll_update(scaled_delta, 0);
+  else
+    zmk_hid_mouse_scroll_update(0, scaled_delta);
+
+  zmk_endpoints_send_mouse_report();
+}
+
 /* read the current touch status */
 static int kscan_cap1203_read(const struct device *dev)
 {
@@ -337,6 +357,7 @@ static int kscan_cap1203_read(const struct device *dev)
 #endif
 
         // todo: callback to process the deltas
+        kscan_cap1203_update_scroll(data->delta_position, false);
       }
       LOG_INF("Delta: %d", data->delta_position);
     }
@@ -356,7 +377,6 @@ static int kscan_cap1203_read(const struct device *dev)
       data->is_slide = false;
     }
     else if( data->update_duration <= 200 ) { // send button tap
-      // todo: callback
       LOG_INF("End of one cycle. Tap manuover, pressed buttons: %d", data->press_state);
 
       // send press state
