@@ -11,8 +11,8 @@
 #include <logging/log.h>
 
 #include <zmk/event_manager.h>
-#include <zmk/events/pd_scroll_state_change.h>
-#include <zmk/events/pd_position_state_change.h>
+#include <zmk/events/pd_scroll_state_changed.h>
+#include <zmk/events/pd_position_state_changed.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 

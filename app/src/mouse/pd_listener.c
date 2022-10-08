@@ -11,8 +11,8 @@
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/event_manager.h>
-#include <zmk/events/pd_scroll_state_change.h>
-#include <zmk/events/pd_position_state_change.h>
+#include <zmk/events/pd_scroll_state_changed.h>
+#include <zmk/events/pd_position_state_changed.h>
 #include <zmk/mouse.h>
 #include <zmk/hid.h>
 #include <zmk/endpoints.h>
@@ -44,22 +44,22 @@ static void pd_process_msgq(struct k_work *work) {
     }
 }
 
-K_WORK_DEFINE(msg_processor, pd_process_msgq);
+K_WORK_DEFINE(pd_msg_processor, pd_process_msgq);
 
 int pd_listener(const zmk_event_t *eh) {
     const struct zmk_pd_position_state_changed *mv_ev = as_zmk_pd_position_state_changed(eh);
     if (mv_ev) {
-      struct zmk_pd_msg msg = {.x = eh.x, .y = eh.y, .scroll = false};
+      struct zmk_pd_msg msg = {.x = mv_ev->x, .y = mv_ev->y, .scroll = false};
       k_msgq_put(&zmk_pd_msgq, &msg, K_NO_WAIT);
-      k_work_submit_to_queue(zmk_mouse_work_q(), &msg_processor);
+      k_work_submit_to_queue(zmk_mouse_work_q(), &pd_msg_processor);
       return 0;
     }
 
     const struct zmk_pd_scroll_state_changed *sc_ev = as_zmk_pd_scroll_state_changed(eh);
     if (sc_ev) {
-      struct zmk_pd_msg msg = {.x = eh.x, .y = eh.y, .scroll = true};
+      struct zmk_pd_msg msg = {.x = sc_ev->x, .y = sc_ev->y, .scroll = true};
       k_msgq_put(&zmk_pd_msgq, &msg, K_NO_WAIT);
-      k_work_submit_to_queue(zmk_mouse_work_q(), &msg_processor);
+      k_work_submit_to_queue(zmk_mouse_work_q(), &pd_msg_processor);
       return 0;
     }
     return 0;

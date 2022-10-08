@@ -1,0 +1,34 @@
+/*
+ * Copyright (c) 2021 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include <dt-bindings/zmk/keys.h>
+
+/ {
+	behaviors {
+		/omit-if-no-ref/ slh: behavior_slider_horizontal {
+			compatible = "zmk,behavior-point-device-incremental";
+			label = "SLIDER_HORIZONTAL";
+			#slider-binding-cells = <0>;
+      mode = "scroll-mode";
+      flavor = "x-only";
+      scale_mode = "multiplier";
+      scale_factor = <10>;
+		};
+	};
+
+	behaviors {
+		/omit-if-no-ref/ slv: behavior_slider_vertical {
+			compatible = "zmk,behavior-point-device-incremental";
+			label = "SLIDER_VERTICAL";
+			#slider-binding-cells = <0>;
+      mode = "scroll-mode";
+      flavor = "y-only";
+      scale_mode = "multiplier";
+      scale_factor = <10>;
+		};
+	};
+};
+

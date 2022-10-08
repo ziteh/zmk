@@ -3,7 +3,7 @@
 
 description: Scroll behavior of point devices
 
-compatible: "zmk,behavior-point-device-scroll"
+compatible: "zmk,behavior-point-device-incremental"
 
 properties:
   label:
@@ -11,11 +11,11 @@ properties:
     required: true
   "#slider-binding-cells":
     type: int
-    required: true
+    required: false
     const: 0
   "#pt-binding-cells":
     type: int
-    required: true
+    required: false
     const: 0
   mode:
     type: string

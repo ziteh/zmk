@@ -11,7 +11,7 @@
 struct zmk_slider_event {
   uint8_t slider_id;
   int16_t delta_position;
-  int delta_time; // in us
+  int delta_time; // in ms
   int64_t update_time;
 };
 
