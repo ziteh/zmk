@@ -9,7 +9,6 @@
 #define USE_POLLING IS_ENABLED(CONFIG_ZMK_KSCAN_CAP1203_POLL)
 
 #include <kernel.h>
-#include <drivers/kscan.h>
 #include <drivers/i2c.h>
 #include <drivers/gpio.h>
 
@@ -20,6 +19,11 @@
 #include <zmk/keymap.h>
 #include <zmk/mouse.h>
 #include <dt-bindings/zmk/mouse.h>
+#include <drivers/kscan.h>
+
+#if defined(CONFIG_CAP1203_MIX_MODE) || defined(CONFIG_CAP1203_SLIDER_MODE)
+#include <drivers/slider.h>
+#endif
 
 LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 
@@ -60,17 +64,8 @@ struct kscan_cap1203_config {
 };
 
 struct kscan_cap1203_data {
-	struct device *dev;
-	kscan_callback_t callback; // zmk's kscan callback
-	struct k_work work; // actual processing work
-	struct gpio_callback int_gpio_cb; // alert gpio pin callback
-  uint8_t touch_state; // current sensor status
-
 #if defined(CONFIG_CAP1203_MIX_MODE) || defined(CONFIG_CAP1203_SLIDER_MODE)
-  uint8_t slider_position;
-  int16_t delta_position;
-  int16_t acc_delta_position;
-  int     update_counter;
+  struct slider_data slider_data;
 #endif
 
 #ifdef CONFIG_CAP1203_MIX_MODE
@@ -78,6 +73,13 @@ struct kscan_cap1203_data {
   uint8_t press_state; // accumulated sensor status at end of cycle
   int64_t update_duration;
 #endif
+
+	struct device *dev;
+	kscan_callback_t callback; // zmk's kscan callback
+	struct k_work work; // actual processing work
+	struct gpio_callback int_gpio_cb; // alert gpio pin callback
+  uint8_t touch_state; // current sensor status
+  int     update_counter;
 };
 
 #if defined(CONFIG_CAP1203_SLIDER_MODE) || defined(CONFIG_CAP1203_MIX_MODE)
@@ -235,20 +237,6 @@ inline static bool kscan_cap1203_change_state(uint8_t *old_input,  \
   return false;
 }
 
-/* send scroll info */
-inline static void kscan_cap1203_update_scroll(int16_t delta, bool is_hoz)
-{
-  zmk_hid_mouse_scroll_set(0, 0);
-
-  int8_t scaled_delta = delta * 10;
-  if( is_hoz )
-    zmk_hid_mouse_scroll_update(scaled_delta, 0);
-  else
-    zmk_hid_mouse_scroll_update(0, scaled_delta);
-
-  zmk_endpoints_send_mouse_report();
-}
-
 /* read the current touch status */
 static int kscan_cap1203_read(const struct device *dev)
 {
@@ -311,6 +299,10 @@ static int kscan_cap1203_read(const struct device *dev)
     LOG_INF("Start of one cycle");
 #endif
 
+	struct slider_data *slider_data = dev->data;
+  // get the curren timestamp
+  int64_t timestamp = k_uptime_get();
+
 #ifdef CONFIG_CAP1203_MIX_MODE
   // get cycle start time
   if(data->touch_state == 0) {
@@ -343,10 +335,12 @@ static int kscan_cap1203_read(const struct device *dev)
 #endif
 
     if(data->touch_state != 0) { // also skip the first update for slider
-      data->delta_position = slider_position[input] - data->slider_position;
-      if (data->delta_position != 0) {
+      slider_data->delta_position = slider_position[input] - slider_data->step;
+      slider_data->delta_time = timestamp - slider_data->pre_ts;
+
+      if (slider_data->delta_position != 0) {
 #ifdef CONFIG_ZMK_USB_LOGGING
-        data->acc_delta_position += data->delta_position;
+        slider_data->acc_position += slider_data->delta_position;
 #endif
 
 #ifdef CONFIG_CAP1203_MIX_MODE
@@ -356,16 +350,20 @@ static int kscan_cap1203_read(const struct device *dev)
         }
 #endif
 
-        // todo: callback to process the deltas
-        kscan_cap1203_update_scroll(data->delta_position, false);
+        // slider callback to process the deltas
+        if (slider_data->callback)
+          slider_data->callback(dev, slider_data->delta_position,
+                                slider_data->delta_time);
       }
-      LOG_INF("Delta: %d", data->delta_position);
+      LOG_INF("dPos: %d, dT: %d us", slider_data->delta_position, slider_data->delta_time);
     }
+
   }
 
   // book-keeping stuff
   data->touch_state = input;
-  data->slider_position = slider_position[input];
+  slider_data->step = slider_position[input];
+  slider_data->pre_ts = timestamp;
 
   if(!input) { // reach the end of slide gesture
 #ifdef CONFIG_CAP1203_MIX_MODE
@@ -373,7 +371,7 @@ static int kscan_cap1203_read(const struct device *dev)
     data->update_duration = k_uptime_get() - data->update_duration;
 
     if(data->is_slide) {
-      LOG_INF("End of one cycle. Slide manuover, total delta: %d", data->acc_delta_position);
+      LOG_INF("End of one cycle. Slide manuover, total delta: %d", slider_data->acc_position);
       data->is_slide = false;
     }
     else if( data->update_duration <= 200 ) { // send button tap
@@ -400,18 +398,15 @@ static int kscan_cap1203_read(const struct device *dev)
     else
       LOG_INF("End of one cycle. Cancelled slide manueover");
 #else
-      LOG_INF("End of one cycle. Total delta: %d", data->acc_delta_position);
+      LOG_INF("End of one cycle. Total delta: %d", slider_data->acc_position);
 #endif
 
-    data->slider_position = 0;
-    data->delta_position = 0;
-    data->acc_delta_position = 0;
+    slider_data->step = 0;
+    slider_data->delta_position = 0;
+    slider_data->acc_position = 0;
+    slider_data->delta_time = 0;
     data->update_counter = 0;
   }
-  else { // for all other updates before last one
-    // keep the current status for next update usage
-  }
-
 #endif
 
   LOG_INF("End of ISR.\n");
@@ -445,7 +440,6 @@ static void kscan_cap1203_timer_handler(struct k_timer *timer)
 }
 #endif
 
-/* api callbacks */
 static int kscan_cap1203_configure(const struct device *dev,
 			     kscan_callback_t callback)
 {
@@ -589,10 +583,23 @@ static int kscan_cap1203_init(const struct device *dev)
 	return 0;
 }
 
-static const struct kscan_driver_api kscan_cap1203_driver_api = {
+#if defined(CONFIG_CAP1203_MIX_MODE) || defined(CONFIG_CAP1203_SLIDER_MODE)
+static void kscan_cap1203_slider_configure(const struct device *dev,
+                                           kscan_slider_callback_t callback,
+                                           int id)
+{
+	struct slider_data *slider_data = dev->data;
+  slider_data->callback = callback;
+  slider_data->id = id;
+}
+
+static struct kscan_slider_api kscan_cap1203_slider_api = {
+  {
 	.config = kscan_cap1203_configure,
 	.enable_callback = kscan_cap1203_enable_callback,
 	.disable_callback = kscan_cap1203_disable_callback,
+  },
+  .slider_config = kscan_cap1203_slider_configure
 };
 
 #define KSCAN_CAP1203_INIT(index)							\
@@ -603,7 +610,24 @@ static const struct kscan_driver_api kscan_cap1203_driver_api = {
 	static struct kscan_cap1203_data kscan_cap1203_data_##index;			\
 	DEVICE_DT_INST_DEFINE(index, kscan_cap1203_init, NULL,			\
 			      &kscan_cap1203_data_##index, &kscan_cap1203_config_##index,	\
+                        APPLICATION, CONFIG_ZMK_KSCAN_INIT_PRIORITY, \
+                        &(kscan_cap1203_slider_api.kscan_api));
+#else // pure button mode
+static const struct kscan_driver_api kscan_cap1203_driver_api = {
+	.config = kscan_cap1203_configure,
+	.enable_callback = kscan_cap1203_enable_callback,
+	.disable_callback = kscan_cap1203_disable_callback,
+};
+#define KSCAN_CAP1203_INIT(index)                                       \
+	static const struct kscan_cap1203_config kscan_cap1203_config_##index = {		\
+		.i2c = I2C_DT_SPEC_INST_GET(index),				\
+		.int_gpio = GPIO_DT_SPEC_INST_GET_OR(index, int_gpios, {0}),	\
+	};									\
+	static struct kscan_cap1203_data kscan_cap1203_data_##index;			\
+	DEVICE_DT_INST_DEFINE(index, kscan_cap1203_init, NULL,			\
+			      &kscan_cap1203_data_##index, &kscan_cap1203_config_##index,	\
 			      APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY ,		\
 			      &kscan_cap1203_driver_api);
+#endif
 
 DT_INST_FOREACH_STATUS_OKAY(KSCAN_CAP1203_INIT)

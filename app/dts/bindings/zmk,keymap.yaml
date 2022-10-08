@@ -16,3 +16,6 @@ child-binding:
     sensor-bindings:
       type: phandle-array
       required: false
+    slider-bindings:
+      type: phandle-array
+      required: false
