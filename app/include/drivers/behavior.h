@@ -28,6 +28,8 @@ typedef int (*behavior_keymap_binding_callback_t)(struct zmk_behavior_binding *b
 typedef int (*behavior_sensor_keymap_binding_callback_t)(struct zmk_behavior_binding *binding,
                                                          const struct sensor_value value,
                                                          int64_t timestamp);
+typedef int (*behavior_pd_keymap_binding_callback_t)(struct zmk_behavior_binding *binding,
+                                                     int16_t dx, int16_t dy, int dt);
 
 enum behavior_locality {
     BEHAVIOR_LOCALITY_CENTRAL,
@@ -41,6 +43,7 @@ __subsystem struct behavior_driver_api {
     behavior_keymap_binding_callback_t binding_pressed;
     behavior_keymap_binding_callback_t binding_released;
     behavior_sensor_keymap_binding_callback_t sensor_binding_triggered;
+    behavior_pd_keymap_binding_callback_t pd_binding_triggered;
 };
 /**
  * @endcond
@@ -180,6 +183,35 @@ static inline int z_impl_behavior_sensor_keymap_binding_triggered(
     return api->sensor_binding_triggered(binding, value, timestamp);
 }
 
+/**
+ * @brief Handle the a point device keymap binding being triggered
+ * @param binding Pointer to the data structure for the behavior binding.
+ * @param sensor Pointer to the sensor device structure for the sensor driver instance.
+ * @param param1 User parameter specified at time of behavior binding.
+ * @param param2 User parameter specified at time of behavior binding.
+ *
+ * @retval 0 If successful.
+ * @retval Negative errno code if failure.
+ */
+__syscall int behavior_pd_keymap_binding_triggered(struct zmk_behavior_binding *binding,
+                                                   int16_t dx, int16_t dy, int dt);
+
+static inline int z_impl_behavior_pd_keymap_binding_triggered(struct zmk_behavior_binding *binding,
+                                                              int16_t dx, int16_t dy, int dt) {
+    const struct device *dev = device_get_binding(binding->behavior_dev);
+
+    if (dev == NULL) {
+        return -EINVAL;
+    }
+
+    const struct behavior_driver_api *api = (const struct behavior_driver_api *)dev->api;
+
+    if (api->pd_binding_triggered == NULL) {
+        return -ENOTSUP;
+    }
+
+    return api->pd_binding_triggered(binding, dx, dy, dt);
+}
 /**
  * @}
  */

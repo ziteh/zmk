@@ -24,19 +24,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 /* the slider callback */
 void zmk_slider_callback(const struct device *dev, int16_t dPos, int dT)
 {
-  /*
-   * Test
-   */
-  zmk_hid_mouse_scroll_set(0, 0);
-
-  int8_t scaled_delta = dPos * 10;
-  zmk_hid_mouse_scroll_update(0, scaled_delta);
-
-  zmk_endpoints_send_mouse_report();
-  /*
-   *
-   */
-
 	struct slider_data *slider_data = dev->data;
 
   LOG_INF("Event from slider_%d: dPos: %d, dT: %d ms", slider_data->id+1, dPos, dT);
