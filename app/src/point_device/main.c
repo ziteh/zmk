@@ -27,7 +27,7 @@ int zmk_pd_init() {
   k_work_queue_init(&pd_work_q);
   k_work_queue_start(&pd_work_q, pd_work_stack_area,
                      K_THREAD_STACK_SIZEOF(pd_work_stack_area),
-                     CONFIG_ZMK_MOUSE_DEDICATED_WORK_QUEUE_PRIORITY,
+                     CONFIG_ZMK_PD_DEDICATED_WORK_QUEUE_PRIORITY,
                      &pd_work_q_config);
 #endif
     return 0;
