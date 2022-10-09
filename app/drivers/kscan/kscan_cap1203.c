@@ -355,7 +355,7 @@ static int kscan_cap1203_read(const struct device *dev)
           slider_data->callback(dev, slider_data->delta_position,
                                 slider_data->delta_time);
       }
-      LOG_INF("dPos: %d, dT: %d us", slider_data->delta_position, slider_data->delta_time);
+      LOG_INF("dPos: %d, dT: %d ms", slider_data->delta_position, slider_data->delta_time);
     }
 
   }

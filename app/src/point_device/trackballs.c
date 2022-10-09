@@ -11,7 +11,6 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-#include <zmk/point_device.h>
 #include <zmk/sliders.h>
 #include <drivers/slider.h>
 #include <zmk/event_manager.h>
@@ -22,41 +21,16 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if ZMK_KEYMAP_HAS_SLIDERS
 
-typedef struct {
-  uint8_t id;
-  int16_t dPos;
-  int     dT;
-}__attribute__((aligned(4))) zmk_slider_msg;
-
-K_MSGQ_DEFINE(zmk_slider_msgq, sizeof(struct zmk_slider_msg), CONFIG_ZMK_KSCAN_EVENT_QUEUE_SIZE, 4);
-
-/* the slider msg processor */
-void zmk_slider_process_msgq(struct k_work *item) {
-    struct zmk_slider_msg msg;
-
-    while (k_msgq_get(&zmk_slider_msgq, &msg, K_NO_WAIT) == 0) {
-      LOG_INF("Event from slider_%d: dPos: %d, dT: %d ms", msg.id, msg.dPos. msg.dT);
-      ZMK_EVENT_RAISE(new_zmk_pd_raw_event((struct zmk_pd_raw_event){
-            .type = SLIDER,
-            .id = msg.id, .dx = msg.dPos, .dy = msg.dPos,
-            .dt = msg.dT, .update_time = k_uptime_get()}));
-    }
-}
-
-K_WORK_DEFINE(slider_msgq_work, zmk_slider_process_msgq);
-
 /* the slider callback */
 void zmk_slider_callback(const struct device *dev, int16_t dPos, int dT)
 {
 	struct slider_data *slider_data = dev->data;
-  struct zmk_slider_msg msg = {
-    .id = slider_data->id,
-    .dPos = dPos,
-    .dT = dT
-  };
 
-  k_msgq_put(&zmk_slider_msgq, &msg, K_NO_WAIT);
-  k_work_submit_to_queue(zmk_pd_work_q(), &slider_msgq_work);
+  LOG_INF("Event from slider_%d: dPos: %d, dT: %d ms", slider_data->id, dPos, dT);
+  ZMK_EVENT_RAISE(new_zmk_pd_raw_event((struct zmk_pd_raw_event){
+        .id = slider_data->id, .dx = dPos, .dy = dPos,
+        .dt = dT, .update_time = k_uptime_get()}));
+  return;
 }
 
 /* config the sliders: setup callback and assign the slider id */
