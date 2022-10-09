@@ -21,6 +21,10 @@ LOG_MODULE_REGISTER(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/mouse.h>
 #endif /* CONFIG_ZMK_MOUSE */
 
+#ifdef CONFIG_ZMK_POINT_DEVICE
+#include <zmk/point_device.h>
+#endif /* CONFIG_ZMK_POINT_DEVICE */
+
 #define ZMK_KSCAN_DEV DT_LABEL(ZMK_MATRIX_NODE_ID)
 
 void main(void) {
@@ -37,4 +41,8 @@ void main(void) {
 #ifdef CONFIG_ZMK_MOUSE
     zmk_mouse_init();
 #endif /* CONFIG_ZMK_MOUSE */
+
+#ifdef CONFIG_ZMK_POINT_DEVICE
+    zmk_pd_init();
+#endif /* CONFIG_ZMK_POINT_DEVICE */
 }

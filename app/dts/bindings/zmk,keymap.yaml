@@ -19,3 +19,9 @@ child-binding:
     slider-bindings:
       type: phandle-array
       required: false
+    trackball-bindings:
+      type: phandle-array
+      required: false
+    joystick-bindings:
+      type: phandle-array
+      required: false

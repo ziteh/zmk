@@ -160,7 +160,7 @@ int zmk_endpoints_send_mouse_report() {
 
 #if IS_ENABLED(CONFIG_ZMK_BLE)
     case ZMK_ENDPOINT_BLE: {
-#if IS_ENABLED(CONFIG_ZMK_MOUSE_WORK_QUEUE_DEDICATED)
+#if defined(CONFIG_ZMK_MOUSE_WORK_QUEUE_DEDICATED) || defined(CONFIG_ZMK_PD_SEND_THREAD_DEDICATED)
         int err = zmk_hog_send_mouse_report_direct(&mouse_report->body);
 #else
         int err = zmk_hog_send_mouse_report(&mouse_report->body);

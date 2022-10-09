@@ -5,6 +5,6 @@
  */
 
 #include <kernel.h>
-#include <zmk/events/slider_event.h>
+#include <zmk/events/pd_raw_event.h>
 
-ZMK_EVENT_IMPL(zmk_slider_event);
+ZMK_EVENT_IMPL(zmk_pd_raw_event);
