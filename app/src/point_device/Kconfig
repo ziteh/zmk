@@ -54,6 +54,10 @@ config ZMK_PD_DEDICATED_SEND_THREAD_PRIORITY
 
 endif # ZMK_PD_SEND_THREAD_DEDICATED
 
+config ZMK_BHV_PD_DIR_TIME_WINDOW
+    int "Time window (ms) of directional behavior of point device"
+    default 300
+
 endif # ZMK_POINT_DEVICE
 
 config ZMK_SLIDERS

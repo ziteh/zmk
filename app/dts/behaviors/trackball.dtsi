@@ -22,4 +22,26 @@
       scale_factor = <3>;
 		};
 	};
+
+	behaviors {
+		/omit-if-no-ref/ tkp: behavior_trackball_key_press {
+			compatible = "zmk,behavior-point-device-directional";
+			label = "TRACKBALL_KEY_PRESS";
+			#trackball-binding-cells = <4>;
+      mode = "distance-mode";
+      flavor = "2-dim";
+      step_size = <100>;
+		};
+	};
+
+	behaviors {
+		/omit-if-no-ref/ tkp2: behavior_trackball_key_press2 {
+			compatible = "zmk,behavior-point-device-directional";
+			label = "TRACKBALL_KEY_PRESS_2";
+			#trackball-binding-cells = <4>;
+      mode = "time-mode";
+      flavor = "2-dim";
+      step_size = <150>;
+		};
+	};
 };

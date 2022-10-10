@@ -38,7 +38,7 @@ struct behavior_point_device_incremental_config {
 static int behavior_point_device_incremental_init(const struct device *dev) { return 0; };
 
 static int on_pd_binding_triggered(struct zmk_behavior_binding *binding,
-                                   int16_t dx, int16_t dy, int dt)
+                                   int16_t dx, int16_t dy, int dt, int64_t timestamp)
 {
   const struct device *dev = device_get_binding(binding->behavior_dev);
   const struct behavior_point_device_incremental_config *cfg = dev->config;

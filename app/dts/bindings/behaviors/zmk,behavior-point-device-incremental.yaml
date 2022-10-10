@@ -1,7 +1,7 @@
 # Copyright (c) 2020 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
-description: Scroll behavior of point devices
+description: Scroll and move behavior of point devices
 
 compatible: "zmk,behavior-point-device-incremental"
 

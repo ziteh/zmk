@@ -29,7 +29,7 @@ typedef int (*behavior_sensor_keymap_binding_callback_t)(struct zmk_behavior_bin
                                                          const struct sensor_value value,
                                                          int64_t timestamp);
 typedef int (*behavior_pd_keymap_binding_callback_t)(struct zmk_behavior_binding *binding,
-                                                     int16_t dx, int16_t dy, int dt);
+                                                     int16_t dx, int16_t dy, int dt, int64_t timestamp);
 
 enum behavior_locality {
     BEHAVIOR_LOCALITY_CENTRAL,
@@ -194,10 +194,12 @@ static inline int z_impl_behavior_sensor_keymap_binding_triggered(
  * @retval Negative errno code if failure.
  */
 __syscall int behavior_pd_keymap_binding_triggered(struct zmk_behavior_binding *binding,
-                                                   int16_t dx, int16_t dy, int dt);
+                                                   int16_t dx, int16_t dy, int dt, int64_t timestamp);
 
 static inline int z_impl_behavior_pd_keymap_binding_triggered(struct zmk_behavior_binding *binding,
-                                                              int16_t dx, int16_t dy, int dt) {
+                                                              int16_t dx, int16_t dy, int dt,
+                                                              int64_t timestamp
+                                                              ) {
     const struct device *dev = device_get_binding(binding->behavior_dev);
 
     if (dev == NULL) {
@@ -210,7 +212,7 @@ static inline int z_impl_behavior_pd_keymap_binding_triggered(struct zmk_behavio
         return -ENOTSUP;
     }
 
-    return api->pd_binding_triggered(binding, dx, dy, dt);
+    return api->pd_binding_triggered(binding, dx, dy, dt, timestamp);
 }
 /**
  * @}
