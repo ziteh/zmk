@@ -81,6 +81,6 @@ static int zmk_sliders_init(const struct device *_arg) {
     return 0;
 }
 
-SYS_INIT(zmk_sliders_init, APPLICATION, 91);
+SYS_INIT(zmk_sliders_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 #endif
 

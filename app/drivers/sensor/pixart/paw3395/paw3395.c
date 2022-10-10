@@ -979,12 +979,7 @@ static void trigger_handler(struct k_work *work)
 		return;
 	}
 
-	struct sensor_trigger trig = {
-		.type = SENSOR_TRIG_DATA_READY,
-		.chan = SENSOR_CHAN_ALL,
-	};
-
-	handler(dev, &trig);
+	handler(dev, data->trigger);
 
   // 2. the second lock period is used to resume the interrupt line
   // if data_ready_handler is non-NULL, otherwise keep it inactive
@@ -1201,6 +1196,8 @@ static int paw3395_trigger_set(const struct device *dev,
 	if (!err) {
 		data->data_ready_handler = handler;
 	}
+
+  data->trigger = trig;
 
 	k_spin_unlock(&data->lock, key);
 

@@ -127,8 +127,8 @@ enum pmw3610_init_step {
 // - Since MCU is not involved in the sensor init process, i is allowed to do other tasks.
 //   Thus, k_sleep or delayed schedule can be used.
 static const int32_t async_init_delay[ASYNC_INIT_STEP_COUNT] = {
-	[ASYNC_INIT_STEP_POWER_UP]         = 5, // test shows > 5ms needed
-	[ASYNC_INIT_STEP_CLEAR_OB1]        = 100,  // 150 us required, test shows too short,
+	[ASYNC_INIT_STEP_POWER_UP]         = 10, // test shows > 5ms needed
+	[ASYNC_INIT_STEP_CLEAR_OB1]        = 200,  // 150 us required, test shows too short,
                                             // also power-up reset is added in this step,                                               thus using 50 ms
 	[ASYNC_INIT_STEP_CHECK_OB1]        = 50,  // 10 ms required in spec,
                                             // test shows too short,
@@ -622,11 +622,11 @@ static int pmw3610_async_init_check_ob1(const struct device *dev)
     return -EINVAL;
   }
 
-	err = check_product_id(dev);
-	if (err) {
-		LOG_ERR("Failed checking product id");
-		return err;
-	}
+	/* err = check_product_id(dev); */
+	/* if (err) { */
+	/* 	LOG_ERR("Failed checking product id"); */
+	/* 	return err; */
+	/* } */
 
   return 0;
 }
@@ -769,12 +769,7 @@ static void trigger_handler(struct k_work *work)
 		return;
 	}
 
-	struct sensor_trigger trig = {
-		.type = SENSOR_TRIG_DATA_READY,
-		.chan = SENSOR_CHAN_ALL,
-	};
-
-	handler(dev, &trig);
+	handler(dev, data->trigger);
 
   // 2. the second lock period is used to resume the interrupt line
   // if data_ready_handler is non-NULL, otherwise keep it inactive
@@ -1008,6 +1003,8 @@ static int pmw3610_trigger_set(const struct device *dev,
 	if (!err) {
 		data->data_ready_handler = handler;
 	}
+
+  data->trigger = trig;
 
 	k_spin_unlock(&data->lock, key);
 

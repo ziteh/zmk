@@ -7,6 +7,7 @@
 
 menuconfig PMW3610
 	bool "PMW3610 mouse optical sensor"
+  select SPI
 	help
 	  Enable PMW3610 mouse optical sensor.
 

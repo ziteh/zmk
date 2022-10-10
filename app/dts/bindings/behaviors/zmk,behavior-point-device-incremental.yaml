@@ -13,7 +13,7 @@ properties:
     type: int
     required: false
     const: 0
-  "#pt-binding-cells":
+  "#trackball-binding-cells":
     type: int
     required: false
     const: 0

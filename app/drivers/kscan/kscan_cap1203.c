@@ -74,7 +74,7 @@ struct kscan_cap1203_data {
   int64_t update_duration;
 #endif
 
-	struct device *dev;
+	const struct device *dev;
 	kscan_callback_t callback; // zmk's kscan callback
 	struct k_work work; // actual processing work
 	struct gpio_callback int_gpio_cb; // alert gpio pin callback
@@ -84,7 +84,7 @@ struct kscan_cap1203_data {
 
 #if defined(CONFIG_CAP1203_SLIDER_MODE) || defined(CONFIG_CAP1203_MIX_MODE)
 /* array of the status patterns, the array_index+1 is the position indicator */
-static uint8_t const slider_pattern[5] = {1, 3, 2, 6, 4};
+/* static uint8_t const slider_pattern[5] = {1, 3, 2, 6, 4}; */
 /* array of slider positions with slider pattern as array index */
 /* The position of unknown slider patterns is defined to be 0 */
 static uint8_t const slider_position[8] = {0, 1, 3, 2, 5, 0, 4, 0};
@@ -112,7 +112,7 @@ static inline int kscan_cap1203_bit_write(const struct i2c_dt_spec *i2c, uint8_t
   uint8_t val;
   int err;
 
-  if(err=i2c_reg_read_byte_dt(i2c, reg, &val)) {
+  if((err=i2c_reg_read_byte_dt(i2c, reg, &val))) {
     return err;
   }
 
@@ -132,7 +132,7 @@ static inline int kscan_cap1203_check_firmware(const struct device *dev)
   uint8_t val;
   int err;
 
-  if(err=i2c_reg_read_byte_dt(&config->i2c, REG_PRODUCT_ID, &val)) {
+  if((err=i2c_reg_read_byte_dt(&config->i2c, REG_PRODUCT_ID, &val))) {
     LOG_INF("Can't read register: product id");
     return err;
   }
@@ -141,7 +141,7 @@ static inline int kscan_cap1203_check_firmware(const struct device *dev)
     return -EIO;
   }
 
-  if(err=i2c_reg_read_byte_dt(&config->i2c, REG_VENDOR_ID, &val)) {
+  if((err=i2c_reg_read_byte_dt(&config->i2c, REG_VENDOR_ID, &val))) {
     LOG_INF("Can't read register: vendor id");
     return err;
   }

@@ -1,0 +1,25 @@
+/ {
+	behaviors {
+		/omit-if-no-ref/ tmv: behavior_trackball_move {
+			compatible = "zmk,behavior-point-device-incremental";
+			label = "TRACKBALL_MOVE";
+			#trackball-binding-cells = <0>;
+      mode = "move-mode";
+      flavor = "default";
+      scale_mode = "multiplier";
+      scale_factor = <1>;
+		};
+	};
+
+	behaviors {
+		/omit-if-no-ref/ tsl: behavior_trackball_scroll {
+			compatible = "zmk,behavior-point-device-incremental";
+			label = "TRACKBALL_SCROLL";
+			#trackball-binding-cells = <0>;
+      mode = "scroll-mode";
+      flavor = "default";
+      scale_mode = "dividor";
+      scale_factor = <5>;
+		};
+	};
+};

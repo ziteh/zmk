@@ -51,4 +51,16 @@ config ZMK_PD_DEDICATED_SEND_THREAD_PRIORITY
 
 endif # ZMK_PD_SEND_THREAD_DEDICATED
 
+config ZMK_TRACKBALL_USB_POLL_INTERVAL
+    int "Poll interval in ms under wired connection"
+    default 1
+
+config ZMK_TRACKBALL_BLE_POLL_INTERVAL
+    int "Poll interval in ms under bluetooth connection"
+    default 15
+
+config ZMK_TRACKBALL_POLL_DURATION
+    int "Duration of polling after receiving an interrupt in ms"
+    default 300
+
 endif # ZMK_POINT_DEVICE

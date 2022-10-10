@@ -84,6 +84,8 @@ static int on_pd_binding_triggered(struct zmk_behavior_binding *binding,
     return ZMK_EVENT_RAISE(new_zmk_pd_scroll_state_changed(
                                                            (struct zmk_pd_scroll_state_changed){.x=x, .y=y}));
   }
+
+  return 0;
 }
 
 static const struct behavior_driver_api behavior_point_device_incremental_driver_api = {
