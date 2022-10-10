@@ -125,7 +125,7 @@ void zmk_trackballs_timer_expiry(struct k_timer *timer) {
 
   // check whether reaching the polling count limit
   if(item->polling_count < max_poll_count) {
-    LOG_DBG("Poll %d", item->polling_count);
+    LOG_INF("Poll %d", item->polling_count);
     // submit polling work to mouse work queue
     k_work_submit_to_queue(zmk_pd_work_q(), &item->poll_work);
 

@@ -1,8 +1,11 @@
 # Copyright (c) 2021 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
+DT_COMPAT_ZMK_KEYMAP_TRACKBALLS := zmk,keymap-trackballs
+DT_COMPAT_ZMK_KEYMAP_SLIDERS := zmk,keymap-sliders
+
 menuconfig ZMK_POINT_DEVICE
-    bool "Enable ZMK general point device support"
+    bool "Enable support for ZMK general point device"
     default n
 
 if ZMK_POINT_DEVICE
@@ -51,16 +54,29 @@ config ZMK_PD_DEDICATED_SEND_THREAD_PRIORITY
 
 endif # ZMK_PD_SEND_THREAD_DEDICATED
 
+endif # ZMK_POINT_DEVICE
+
+config ZMK_SLIDERS
+	bool
+	default $(dt_compat_enabled,$(DT_COMPAT_ZMK_KEYMAP_SLIDERS))
+  select ZMK_POINT_DEVICE
+
+config ZMK_TRACKBALLS
+	bool
+	default $(dt_compat_enabled,$(DT_COMPAT_ZMK_KEYMAP_TRACKBALLS))
+  select ZMK_POINT_DEVICE
+
+if ZMK_TRACKBALLS
 config ZMK_TRACKBALL_USB_POLL_INTERVAL
     int "Poll interval in ms under wired connection"
-    default 1
+    default 8
 
 config ZMK_TRACKBALL_BLE_POLL_INTERVAL
     int "Poll interval in ms under bluetooth connection"
-    default 15
+    default 8
 
 config ZMK_TRACKBALL_POLL_DURATION
     int "Duration of polling after receiving an interrupt in ms"
     default 300
 
-endif # ZMK_POINT_DEVICE
+endif # ZMK_TRACKBALLS

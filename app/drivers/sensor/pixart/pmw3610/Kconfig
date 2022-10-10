@@ -30,28 +30,28 @@ config PMW3610_CPI
 
 config PMW3610_CPI_DIVIDOR
 	int "PMW3610's default CPI dividor"
-	default 6
+	default 4
 	range 1 100
 	help
 	  Default CPI dividor value.
 
 config PMW3610_REST1_SAMPLE_TIME_MS
 	int "PMW3610's sample time in REST1 stage"
-	default 40
+	default 100
 	range 10 2550
 	help
 	  Default REST1 mode sample period in millisecond
 
 config PMW3610_REST2_SAMPLE_TIME_MS
 	int "PMW3610's sample time in REST2 stage"
-	default 100
+	default 200
 	range 10 2550
 	help
 	  Default REST2 mode sample period in millisecond.
 
 config PMW3610_REST3_SAMPLE_TIME_MS
 	int "PMW3610's sample time in REST3 stage"
-	default 500
+	default 300
 	range 10 2550
 	help
 	  Default REST2 mode sample period in millisecond.
@@ -66,14 +66,14 @@ config PMW3610_RUN_DOWNSHIFT_TIME_MS
 
 config PMW3610_REST1_DOWNSHIFT_TIME_MS
 	int "PMW3610's default REST1 mode downshift time"
-	default 10000
+	default 3000
 	help
 	  Default REST1 mode downshift down time in milliseconds.
 	  Time after which sensor goes from REST1 to REST2 mode.
 
 config PMW3610_REST2_DOWNSHIFT_TIME_MS
 	int "PMW3610's default REST2 mode downshift time"
-	default 600000
+	default 30000
 	help
 	  Default REST2 mode downshift down time in milliseconds.
 	  Time after which sensor goes from REST2 to REST3 mode.
