@@ -61,6 +61,7 @@ static int on_pd_binding_triggered(struct zmk_behavior_binding *binding,
   default:
     x = dx;
     y = dy;
+    break;
   }
 
   //
@@ -73,6 +74,9 @@ static int on_pd_binding_triggered(struct zmk_behavior_binding *binding,
     x = x / cfg->scale_factor;
     y = y / cfg->scale_factor;
     break;
+  default:
+    LOG_ERR("unsupported scale mode %d", cfg->scale_mode);
+		return -ENOTSUP;
   }
 
   // choose the report type
@@ -83,6 +87,9 @@ static int on_pd_binding_triggered(struct zmk_behavior_binding *binding,
   case SCROLL_MODE:
     return ZMK_EVENT_RAISE(new_zmk_pd_scroll_state_changed(
                                                            (struct zmk_pd_scroll_state_changed){.x=x, .y=y}));
+  default:
+    LOG_ERR("unsupported work mode %d", cfg->mode);
+		return -ENOTSUP;
   }
 
   return 0;
