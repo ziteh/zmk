@@ -1,0 +1,83 @@
+/*
+ * Copyright (c) 2020 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include "blade.dtsi"
+
+/*  adjust matrix transform for pepripheral split */
+&default_transform {
+	col-offset = <5>;
+};
+
+/* Define kscan pins */
+/ {
+	kscan0: kscan0 {
+		compatible = "zmk,kscan-gpio-matrix";
+		label = "KSCAN0";
+
+		diode-direction = "col2row";
+		row-gpios
+			= <&gpio0 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+			, <&gpio0 3 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+			, <&gpio0 6 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+			, <&gpio0 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+			;
+   	col-gpios
+  		= <&gpio0 26 GPIO_ACTIVE_HIGH>
+	  	, <&gpio0 28 GPIO_ACTIVE_HIGH>
+		  , <&gpio1 13 GPIO_ACTIVE_HIGH>
+		  , <&gpio0 30 GPIO_ACTIVE_HIGH>
+		  , <&gpio0 31 GPIO_ACTIVE_HIGH>
+		  ;
+	};
+};
+
+kscan1: &slider_right {};
+
+
+/* Define the right slider pins */
+&i2c0 {
+	sda-pin = <8>;
+  scl-pin = <4>;
+};
+
+&slider_right {
+  status = "okay";
+	int-gpios = <&gpio1  9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};
+
+/* Define display */ 
+/ {
+  chosen {
+ 		zephyr,display = &lcd;
+  };
+};
+
+&nrfmacro_spi {
+  status = "okay";
+  compatible = "nordic,nrf-spim";
+  sck-pin = <32>;
+  mosi-pin = <22>;
+  cs-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+  // Unused pin, needed for SPI definition, but not used by the display driver itself.
+  miso-pin = <37>; // 1.05 is not broken out on the E73
+
+	lcd: ls0xx@0 {
+		compatible = "sharp,ls0xx";
+		label = "DISPLAY";
+		spi-max-frequency = <2000000>;
+		reg = <0>;
+		width = <160>;
+		height = <68>;
+		// extcomin-gpios = <&pro_micro 2 GPIO_ACTIVE_HIGH>;
+		// extcomin-frequency = <60>;
+		// disp-en-gpios = <&pro_micro 3 GPIO_ACTIVE_HIGH>; 
+	};
+};
+
+/* Enable the right encoder */
+// &right_encoder {
+// 	status = "okay";
+// };
