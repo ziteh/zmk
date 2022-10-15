@@ -13,7 +13,7 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_REGISTER(battery, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_REGISTER(battery, CONFIG_BATTERY_LOG_LEVEL);
 
 #include <zmk/event_manager.h>
 #include <zmk/battery.h>
@@ -42,9 +42,11 @@ static int zmk_battery_update(const struct device *battery) {
         LOG_DBG("Failed to fetch battery values: %d", rc);
         return rc;
     }
-
-    /* rc = sensor_channel_get(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE, &state_of_charge); */
+#ifdef CONFIG_ZMK_USB_LOGGING
     rc = sensor_channel_get(battery, SENSOR_CHAN_ALL, &state_of_charge);
+#else
+    rc = sensor_channel_get(battery, SENSOR_CHAN_GAUGE_STATE_OF_CHARGE, &state_of_charge);
+#endif
 
     if (rc != 0) {
         LOG_DBG("Failed to get battery state of charge: %d", rc);

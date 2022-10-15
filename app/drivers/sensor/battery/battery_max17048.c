@@ -14,7 +14,7 @@
 #include <sys/byteorder.h>
 #include <drivers/sensor.h>
 
-LOG_MODULE_REGISTER(max17048, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_REGISTER(max17048, CONFIG_BATTERY_LOG_LEVEL);
 
 #define REG_VCELL 0x02 // 78.125 uV
 #define REG_SOC 0x04 // 1%/256
