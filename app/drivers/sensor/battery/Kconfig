@@ -34,3 +34,7 @@ config ZMK_BATTERY_MAX17048
 	help
 	  Enable I2C-based driver for MAX17048/9 Fuel Gauge. Supports measuring
 	  battery voltage and state-of-charge.
+
+module = BATTERY
+module-str = battery
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
