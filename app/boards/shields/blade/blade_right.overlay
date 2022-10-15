@@ -48,6 +48,10 @@ kscan1: &slider_right {};
 	int-gpios = <&gpio1  9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 };
 
+&fuel_gauge {
+  status = "okay";
+};
+
 /* Define display */ 
 / {
   chosen {

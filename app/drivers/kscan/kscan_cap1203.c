@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2022 Keiya Nobuta
+ * Copyright (c) 2022 Yong Zhou
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT
  */
 
 #define DT_DRV_COMPAT zmk_kscan_cap1203

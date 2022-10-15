@@ -25,6 +25,7 @@
 	chosen: chosen {
 		zmk,kscan = &kscan;
 		zmk,matrix_transform = &default_transform;
+    zmk,battery = &fuel_gauge;
 	};
 
 /* global matrix transform */
@@ -117,5 +118,12 @@ RC(3,0) RC(3,1) RC(3,2) RC(3,3) RC(3,4)  RC(3,5) RC(3,6) RC(3,7)
 	  label = "SLIDER_RIGHT";
     status = "disabled";
     reg = <0x28>;
+  };
+
+  fuel_gauge: fuel_gauge@36 {
+	  compatible = "zmk,battery-max17048";
+	  label = "BATTERY_FUELGAUGE";
+    status = "disabled";
+    reg = <0x36>;
   };
 };

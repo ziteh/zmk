@@ -3,6 +3,7 @@
 
 DT_COMPAT_ZMK_BATTERY_NRF_VDDH := zmk,battery-nrf-vddh
 DT_COMPAT_ZMK_BATTERY_VOLTAGE_DIVIDER := zmk,battery-voltage-divider
+DT_COMPAT_ZMK_BATTERY_MAX17048 := zmk,battery-max17048
 
 config ZMK_BATTERY
 	bool "ZMK battery monitoring"
@@ -24,3 +25,12 @@ config ZMK_BATTERY_VOLTAGE_DIVIDER
 	select ZMK_BATTERY
 	help
 		Enable ZMK battery voltage divider driver for battery monitoring.
+
+config ZMK_BATTERY_MAX17048
+	bool "MAX17048 Fuel Gauge"
+	default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BATTERY_MAX17048))
+  select I2C
+	select ZMK_BATTERY
+	help
+	  Enable I2C-based driver for MAX17048/9 Fuel Gauge. Supports measuring
+	  battery voltage and state-of-charge.
