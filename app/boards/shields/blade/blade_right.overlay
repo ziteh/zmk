@@ -45,9 +45,11 @@ kscan1: &slider_right {};
 
 &slider_right {
   status = "okay";
+  invert-direction;
 	int-gpios = <&gpio1  9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 };
 
+/* Enable fuel gauge */
 &fuel_gauge {
   status = "okay";
 };
@@ -81,7 +83,23 @@ kscan1: &slider_right {};
 	};
 };
 
-/* Enable the right encoder */
+/* Define trackball pins */
+&spi2 {
+  sck-pin = <17>;
+  mosi-pin = <12>;
+  miso-pin = <12>; // same as mosi (3-wire spi)
+  cs-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+};
+
+// enable the right trackball
+&trackball_right {
+  status = "okay";
+  irq-gpios = <&gpio0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};
+
+/* Define encoder pins */
 // &right_encoder {
 // 	status = "okay";
+//	a-gpios = <&gpio1 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+//	b-gpios = <&gpio1 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 // };

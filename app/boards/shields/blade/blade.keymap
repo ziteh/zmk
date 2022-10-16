@@ -36,6 +36,7 @@
              		>;
                 // sensor-bindings = <&inc_dec_kp RIGHT LEFT &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &slv>;
+                trackball-bindings = <&tmv &tmv>;
 		    };
 
      		// qwert_layer {

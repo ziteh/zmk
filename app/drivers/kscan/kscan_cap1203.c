@@ -61,6 +61,7 @@ LOG_MODULE_REGISTER(kscan_cap1203, CONFIG_ZMK_LOG_LEVEL);
 struct kscan_cap1203_config {
 	struct i2c_dt_spec i2c;
 	struct gpio_dt_spec int_gpio;
+  bool invert_direction;
 };
 
 struct kscan_cap1203_data {
@@ -352,7 +353,7 @@ static int kscan_cap1203_read(const struct device *dev)
 
         // slider callback to process the deltas
         if (slider_data->callback)
-          slider_data->callback(dev, slider_data->delta_position,
+          slider_data->callback(dev, config->invert_direction ? -slider_data->delta_position : slider_data->delta_position,
                                 slider_data->delta_time);
       }
       LOG_INF("dPos: %d, dT: %d ms", slider_data->delta_position, slider_data->delta_time);
@@ -606,6 +607,7 @@ static struct kscan_slider_api kscan_cap1203_slider_api = {
 	static const struct kscan_cap1203_config kscan_cap1203_config_##index = {		\
 		.i2c = I2C_DT_SPEC_INST_GET(index),				\
 		.int_gpio = GPIO_DT_SPEC_INST_GET_OR(index, int_gpios, {0}),	\
+    .invert_direction = DT_INST_PROP(index, invert_direction),        \
 	};									\
 	static struct kscan_cap1203_data kscan_cap1203_data_##index;			\
 	DEVICE_DT_INST_DEFINE(index, kscan_cap1203_init, NULL,			\

@@ -70,38 +70,40 @@ RC(3,0) RC(3,1) RC(3,2) RC(3,3) RC(3,4)  RC(3,5) RC(3,6) RC(3,7)
 		};
 	};
 
-  /* Configure Sliders */
+  /* Configure Sliders (place holder) */
 	sliders {
 		compatible = "zmk,keymap-sliders";
 		sliders = <&slider_left &slider_right>;
 	};
 
-  /* Configure Encoders */
-	sensors {
-		compatible = "zmk,keymap-sensors";
-		sensors = <&left_encoder &right_encoder>;
+  /* Configure Trackballs (place holder) */
+	trackballs {
+		compatible = "zmk,keymap-trackballs";
+		trackballs = <&trackball_left &trackball_right>;
 	};
 
-	left_encoder: encoder_left {
+  /* Configure Encoders (place holder) */
+	sensors {
+		compatible = "zmk,keymap-sensors";
+		sensors = <&encoder_left &encoder_right>;
+	};
+
+	encoder_left: encoder_left {
 		compatible = "alps,ec11";
     status = "disabled";
 		label = "LEFT_ENCODER";
-		a-gpios = <&gpio1 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		b-gpios = <&gpio1 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		resolution = <2>;
 	};
 
-	right_encoder: encoder_right {
+	encoder_right: encoder_right {
 		compatible = "alps,ec11";
     status = "disabled";
 		label = "RIGHT_ENCODER";
-		a-gpios = <&gpio1 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		b-gpios = <&gpio1 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-		resolution = <2>;
+    resolution = <2>;
 	};
-
 };
 
+/* slider declaration */
 &i2c0 {
   compatible = "nordic,nrf-twi";
   status = "okay";
@@ -120,10 +122,35 @@ RC(3,0) RC(3,1) RC(3,2) RC(3,3) RC(3,4)  RC(3,5) RC(3,6) RC(3,7)
     reg = <0x28>;
   };
 
+/* fuel gauge declaration */
   fuel_gauge: fuel_gauge@36 {
 	  compatible = "zmk,battery-max17048";
 	  label = "BATTERY_FUELGAUGE";
     status = "disabled";
     reg = <0x36>;
+  };
+};
+
+/* trackball declaration */
+&spi2 {
+  compatible = "nordic,nrf-spim";
+  status = "okay";
+
+  trackball_left: trackball_left@0 {
+    compatible = "pixart,pmw3610";
+    status = "disabled";
+    reg = <0>;
+    label = "TRACKBALL_LEFT";
+    spi-max-frequency = <2000000>;
+    duplex = <2048>; // required by 3-wire spi
+  };
+
+  trackball_right: trackball_right@0 {
+    compatible = "pixart,pmw3610";
+    status = "disabled";
+    reg = <0>;
+    label = "TRACKBALL_RIGHT";
+    spi-max-frequency = <2000000>;
+    duplex = <2048>; // required by 3-wire spi
   };
 };
