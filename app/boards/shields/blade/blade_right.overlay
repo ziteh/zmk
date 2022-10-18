@@ -6,6 +6,19 @@
 
 #include "blade.dtsi"
 
+/* overrides nrfmacro.dts defaults */ 
+&blue_led {
+  gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+};
+
+&vcc_ctrl {
+  control-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+};
+
+&vbatt {
+  status = "disabled";
+};
+
 /*  adjust matrix transform for pepripheral split */
 &default_transform {
 	col-offset = <5>;
@@ -34,15 +47,14 @@
 	};
 };
 
-kscan1: &slider_right {};
-
-
-/* Define the right slider pins */
-&i2c0 {
-	sda-pin = <8>;
-  scl-pin = <4>;
+&kscan {
+		touch_keys {
+      kscan = <&slider_right>;
+      row-offset = <4>;
+		};
 };
 
+/* Enable the right slider and define its pins */
 &slider_right {
   status = "okay";
   invert-direction;
@@ -50,19 +62,32 @@ kscan1: &slider_right {};
 };
 
 /* Enable fuel gauge */
-&fuel_gauge {
-  status = "okay";
+&chosen {
+  zmk,battery = &fuel_gauge;
 };
 
-/* Define display */ 
-/ {
-  chosen {
- 		zephyr,display = &lcd;
+/* Define sda and scl pins */
+&i2c0 {
+	sda-pin = <8>;
+  scl-pin = <4>;
+
+  /* Define the fuel gauge */
+  fuel_gauge: fuel_gauge@36 {
+	  compatible = "zmk,battery-max17048";
+	  label = "BATTERY_FUELGAUGE";
+    reg = <0x36>;
   };
 };
 
+/* Define display */ 
+&chosen {
+	zephyr,display = &lcd;
+};
+
 &nrfmacro_spi {
+  // activate this device
   status = "okay";
+
   compatible = "nordic,nrf-spim";
   sck-pin = <32>;
   mosi-pin = <22>;
@@ -83,21 +108,21 @@ kscan1: &slider_right {};
 	};
 };
 
-/* Define trackball pins */
+/* Enable spi2 bus and the trackball, and define their pins */
 &spi2 {
+  status = "okay";
   sck-pin = <17>;
   mosi-pin = <12>;
   miso-pin = <12>; // same as mosi (3-wire spi)
   cs-gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
 };
 
-// enable the right trackball
-&trackball_right {
+&trackball {
   status = "okay";
   irq-gpios = <&gpio0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 };
 
-/* Define encoder pins */
+/* Enable the right encoder and define its pins */
 // &right_encoder {
 // 	status = "okay";
 //	a-gpios = <&gpio1 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;

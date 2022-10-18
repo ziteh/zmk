@@ -29,12 +29,12 @@
             label = "CLMK";
         		bindings = <
             		&kp Q &kp W      &kp F      &kp P      &kp B        &kp J     &kp L      &kp U      &kp Y      &kp SQT
-             		&kp A &mt LSFT R &mt LALT S &mt LCTL T &kp G    &kp M &mt RCTL N &mt RALT E &mt RSFT I &kp O
+             		&kp A &mt LSFT R &mt LALT S &mt LCTL T &kp G        &kp M     &mt RCTL N &mt RALT E &mt RSFT I &kp O
                 &kp Z &kp X      &kp C      &kp D      &kp V        &kp K     &kp H      &cmqus     &dtsmi     &kp RC(B)
-                &kp KP_N1 &kp KP_N2    &encoder   &kp TAB    &kp SPACE           &lt SYM RET      &kp BSPC   &encoder 
+                &kp KP_N1 &kp KP_N2 &encoder &kp TAB   &kp SPACE    &lt SYM RET &kp BSPC &encoder 
                 &kp A &kp B &kp C
              		>;
-                // sensor-bindings = <&inc_dec_kp RIGHT LEFT &inc_dec_kp UP DOWN>;
+                sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &slv>;
                 trackball-bindings = <&tmv &tmv>;
 		    };

@@ -389,8 +389,8 @@ static void connected(struct bt_conn *conn, uint8_t err) {
 
     update_advertising();
 
-    LOG_INF("New connection params: Interval: %d, Latency: %d, RX: %d, TX: %d", info.le.interval,
-            info.le.latency, info.le.phy->rx_phy, info.le.phy->tx_phy);
+    /* LOG_DBG("New connection params: Interval: %d, Latency: %d, RX: %d, TX: %d", info.le.interval, */
+            /* info.le.latency, info.le.phy->rx_phy, info.le.phy->tx_phy); */
 
     if (is_conn_active_profile(conn)) {
         LOG_DBG("Active profile connected");
