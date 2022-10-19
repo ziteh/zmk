@@ -160,7 +160,7 @@
          combo_ldelete {
             timeout-ms = <50>;
             key-positions = <13 14>;
-            bindings = <&kp BSPC>;
+            bindings = <&kp DELETE>;
         };
  
         combo_zoomin {
@@ -273,8 +273,8 @@
         		bindings = <
             		&kp Q     &kp W      &kp F      &kp P      &kp B         &kp J     &kp L      &kp U      &kp Y      &kp SQT
              		&lt SYM A &mt LALT R &mt LSFT S &mt LCTL T &kp G         &kp M     &mt RCTL N &mt RSFT E &mt RALT I &lt SYM O 
-                &kp Z     &kp X      &kp C      &kp D  &kp V             &kp K     &kp H      &cmqus     &dtsmi     &lt FUN BSPC
-                &none  &none  &hello  &lt FUN TAB  &lt NUM SPACE         &lt NUM RET &lt FUN BSPC &encoder  &none   &none
+                &kp Z     &kp X      &kp C      &kp D  &kp V             &kp K     &kp H      &cmqus     &dtsmi     &lt FUN TAB
+                &none  &none  &hello  &lt FUN BSPC  &lt NUM SPACE         &lt NUM RET &lt FUN BSPC &encoder  &none   &none
                 &none  &none  &none
              		>;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
@@ -292,8 +292,8 @@
                 &none  &none  &none
             >;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
-                slider-bindings = <&slv &slv>;
-                trackball-bindings = <&tmv>;
+                slider-bindings = <&slv &skp2 LC(PLUS) LC(MINUS)>;
+                trackball-bindings = <&tsl>;
         };
 
         symbol_layer {
@@ -306,8 +306,8 @@
                 &none  &none  &none
             >;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
-                slider-bindings = <&slv &slv>;
-                trackball-bindings = <&tmv>;
+                slider-bindings = <&slv &skp2 LC(LS(TAB)) LC(TAB)>;
+                trackball-bindings = <&tkp2 LC(TAB) LC(LS(TAB)) LG(PG_UP) LG(PG_DN)>;
         };
 
         function_layer {
@@ -321,7 +321,7 @@
             >;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &slv>;
-                trackball-bindings = <&tmv>;
+                trackball-bindings = <&tkp2 LC(LS(TAB)) LC(TAB) LG(PG_UP) LG(PG_DN)>;
         };
         
    	};
