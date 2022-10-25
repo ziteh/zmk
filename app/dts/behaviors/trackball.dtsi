@@ -19,7 +19,7 @@
       mode = "scroll-mode";
       flavor = "default";
       scale_mode = "dividor";
-      scale_factor = <3>;
+      scale_factor = <13>;
 		};
 	};
 
@@ -30,7 +30,7 @@
 			#trackball-binding-cells = <4>;
       mode = "distance-mode";
       flavor = "2-dim";
-      step_size = <100>;
+      step_size = <160>;
 		};
 	};
 

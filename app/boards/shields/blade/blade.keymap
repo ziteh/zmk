@@ -307,7 +307,7 @@
             >;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &skp2 LC(LS(TAB)) LC(TAB)>;
-                trackball-bindings = <&tkp2 LC(TAB) LC(LS(TAB)) LG(PG_UP) LG(PG_DN)>;
+                trackball-bindings = <&tkp LC(TAB) LC(LS(TAB)) LG(PG_UP) LG(PG_DN)>;
         };
 
         function_layer {
