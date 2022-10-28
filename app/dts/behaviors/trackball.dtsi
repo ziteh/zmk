@@ -74,6 +74,18 @@
 		};
 	};
 
+	behaviors {
+		/omit-if-no-ref/ tsl_fine: behavior_trackball_scroll {
+			compatible = "zmk,behavior-point-device-incremental";
+			label = "TRACKBALL_SCROLL_FINE";
+			#trackball-binding-cells = <0>;
+      mode = "scroll-mode";
+      flavor = "default";
+      scale_mode = "dividor";
+      scale_factor = <1>;
+		};
+	};
+
   /* trackball key press */
 	behaviors {
 		/omit-if-no-ref/ tkp: behavior_trackball_key_press {
@@ -82,7 +94,7 @@
 			#trackball-binding-cells = <4>;
       mode = "distance-mode";
       flavor = "2-dim";
-      step_size = <200>;
+      step_size = <250>;
 		};
 	};
 
