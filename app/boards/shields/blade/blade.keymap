@@ -279,7 +279,7 @@
              		&lt SYM A         &mt LALT R        &mt LSFT S    &mt LCTL T      &kp G         &kp M     &mt RCTL N          &mt RSFT E &mt RALT I &lt SYM O 
                 &lt PTD_HOR Z     &lt PTD_VER X     &kp C         &lt PTD_CRS D   &kp V         &kp K     &lt PTD_CRS H       &cmqus     &dtsmi     &lt FUN TAB
                 &none  &none  &hello  &lt FUN BSPC  &lt NUM SPACE                               &lt NUM RET     &lt FUN BSPC  &encoder  &none   &none
-                &none  &none  &mkp LCLK
+                &none  &none  &none
              		>;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &slv>;
@@ -325,7 +325,7 @@
             >;
                 sensor-bindings = <&inc_dec_kp UP DOWN &inc_dec_kp UP DOWN>;
                 slider-bindings = <&slv &slv>;
-                trackball-bindings = <&tkp_fast RIGHT LEFT UP DOWN>;
+                trackball-bindings = <&tkp_fast RIGHT LEFT DOWN UP>;
         };
         
         ptd_coarse_layer {

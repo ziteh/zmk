@@ -75,7 +75,7 @@
 	};
 
 	behaviors {
-		/omit-if-no-ref/ tsl_fine: behavior_trackball_scroll {
+		/omit-if-no-ref/ tsl_fine: behavior_trackball_scroll_fine {
 			compatible = "zmk,behavior-point-device-incremental";
 			label = "TRACKBALL_SCROLL_FINE";
 			#trackball-binding-cells = <0>;
