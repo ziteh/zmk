@@ -77,6 +77,7 @@ struct kscan_cap1203_data {
 
 	const struct device *dev;
 	kscan_callback_t callback; // zmk's kscan callback
+  struct k_timer  timer;
 	struct k_work work; // actual processing work
 	struct gpio_callback int_gpio_cb; // alert gpio pin callback
   uint8_t touch_state; // current sensor status
@@ -476,10 +477,12 @@ static int kscan_cap1203_enable_callback(const struct device *dev)
 	const struct kscan_cap1203_config *config = dev->config;
 
 	if (config->int_gpio.port != NULL) {
+    LOG_DBG("enable interrupt callback");
 		gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
 	}
 #if USE_POLLING
 	else {
+    LOG_DBG("enable timer callback");
 		k_timer_start(&data->timer, K_MSEC(CONFIG_ZMK_KSCAN_CAP1203_PERIOD),
 			      K_MSEC(CONFIG_ZMK_KSCAN_CAP1203_PERIOD));
 	}
@@ -494,10 +497,12 @@ static int kscan_cap1203_disable_callback(const struct device *dev)
 	const struct kscan_cap1203_config *config = dev->config;
 
 	if (config->int_gpio.port != NULL) {
+    LOG_DBG("disable interrupt callback");
 		gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
 	}
 #if USE_POLLING
 	else {
+    LOG_DBG("disable timer callback");
 		k_timer_stop(&data->timer);
 	}
 #endif
@@ -523,6 +528,7 @@ static int kscan_cap1203_init(const struct device *dev)
 
   // init alert interrupt pin or poll timer
 	if (config->int_gpio.port != NULL) {
+    LOG_DBG("Init interrupt mode");
 		if (!device_is_ready(config->int_gpio.port)) {
 			LOG_ERR("Interrupt GPIO controller device not ready");
 			return -ENODEV;
@@ -546,6 +552,7 @@ static int kscan_cap1203_init(const struct device *dev)
 	}
 #if USE_POLLING
 	else {
+    LOG_DBG("Init poll mode");
 		k_timer_init(&data->timer, kscan_cap1203_timer_handler, NULL);
 
     // disable alert function in poll mode
@@ -592,6 +599,8 @@ static void kscan_cap1203_slider_configure(const struct device *dev,
 	struct slider_data *slider_data = dev->data;
   slider_data->callback = callback;
   slider_data->id = id;
+
+  kscan_cap1203_enable_callback(dev);
 }
 
 static struct kscan_slider_api kscan_cap1203_slider_api = {
