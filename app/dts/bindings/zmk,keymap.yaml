@@ -16,3 +16,12 @@ child-binding:
     sensor-bindings:
       type: phandle-array
       required: false
+    slider-bindings:
+      type: phandle-array
+      required: false
+    trackball-bindings:
+      type: phandle-array
+      required: false
+    joystick-bindings:
+      type: phandle-array
+      required: false

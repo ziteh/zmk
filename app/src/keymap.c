@@ -11,6 +11,8 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/matrix.h>
 #include <zmk/sensors.h>
+#include <zmk/sliders.h>
+#include <zmk/trackballs.h>
 #include <zmk/keymap.h>
 #include <drivers/behavior.h>
 #include <zmk/behavior.h>
@@ -24,6 +26,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/events/position_state_changed.h>
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/events/sensor_event.h>
+#include <zmk/events/pd_raw_event.h>
 
 static zmk_keymap_layers_state_t _zmk_keymap_layer_state = 0;
 static uint8_t _zmk_keymap_layer_default = 0;
@@ -38,24 +41,6 @@ static uint8_t _zmk_keymap_layer_default = 0;
 
 #define TRANSFORMED_LAYER(node)                                                                    \
     {UTIL_LISTIFY(DT_PROP_LEN(node, bindings), BINDING_WITH_COMMA, node)},
-
-#if ZMK_KEYMAP_HAS_SENSORS
-#define _TRANSFORM_SENSOR_ENTRY(idx, layer)                                                        \
-    {                                                                                              \
-        .behavior_dev = DT_LABEL(DT_PHANDLE_BY_IDX(layer, sensor_bindings, idx)),                  \
-        .param1 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, sensor_bindings, idx, param1), (0),    \
-                              (DT_PHA_BY_IDX(layer, sensor_bindings, idx, param1))),               \
-        .param2 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, sensor_bindings, idx, param2), (0),    \
-                              (DT_PHA_BY_IDX(layer, sensor_bindings, idx, param2))),               \
-    },
-
-#define SENSOR_LAYER(node)                                                                         \
-    COND_CODE_1(                                                                                   \
-        DT_NODE_HAS_PROP(node, sensor_bindings),                                                   \
-        ({UTIL_LISTIFY(DT_PROP_LEN(node, sensor_bindings), _TRANSFORM_SENSOR_ENTRY, node)}),       \
-        ({})),
-
-#endif /* ZMK_KEYMAP_HAS_SENSORS */
 
 #define LAYER_LABEL(node) COND_CODE_0(DT_NODE_HAS_PROP(node, label), (NULL), (DT_LABEL(node))),
 
@@ -73,14 +58,101 @@ static const char *zmk_keymap_layer_names[ZMK_KEYMAP_LAYERS_LEN] = {
     DT_INST_FOREACH_CHILD(0, LAYER_LABEL)};
 
 #if ZMK_KEYMAP_HAS_SENSORS
+#define _TRANSFORM_SENSOR_ENTRY(idx, layer)                                                        \
+    {                                                                                              \
+        .behavior_dev = DT_LABEL(DT_PHANDLE_BY_IDX(layer, sensor_bindings, idx)),                  \
+        .param1 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, sensor_bindings, idx, param1), (0),    \
+                              (DT_PHA_BY_IDX(layer, sensor_bindings, idx, param1))),               \
+        .param2 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, sensor_bindings, idx, param2), (0),    \
+                              (DT_PHA_BY_IDX(layer, sensor_bindings, idx, param2))),               \
+    },
+
+#define SENSOR_LAYER(node)                                                                         \
+    COND_CODE_1(                                                                                   \
+        DT_NODE_HAS_PROP(node, sensor_bindings),                                                   \
+        ({UTIL_LISTIFY(DT_PROP_LEN(node, sensor_bindings), _TRANSFORM_SENSOR_ENTRY, node)}),       \
+        ({})),
 
 static struct zmk_behavior_binding zmk_sensor_keymap[ZMK_KEYMAP_LAYERS_LEN]
                                                     [ZMK_KEYMAP_SENSORS_LEN] = {
                                                         DT_INST_FOREACH_CHILD(0, SENSOR_LAYER)};
-
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
 
-static inline int set_layer_state(uint8_t layer, bool state) {
+#if ZMK_KEYMAP_HAS_SLIDERS
+#define _TRANSFORM_SLIDER_ENTRY(idx, layer)                                                        \
+    {                                                                                              \
+        .behavior_dev = DT_LABEL(DT_PHANDLE_BY_IDX(layer, slider_bindings, idx)),                  \
+        .param1 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, slider_bindings, idx, param1), (0),    \
+                              (DT_PHA_BY_IDX(layer, slider_bindings, idx, param1))),               \
+        .param2 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, slider_bindings, idx, param2), (0),    \
+                              (DT_PHA_BY_IDX(layer, slider_bindings, idx, param2))),               \
+    },
+
+#define SLIDER_LAYER(node)                                                                         \
+    COND_CODE_1(                                                                                   \
+        DT_NODE_HAS_PROP(node, slider_bindings),                                                   \
+        ({UTIL_LISTIFY(DT_PROP_LEN(node, slider_bindings), _TRANSFORM_SLIDER_ENTRY, node)}),       \
+        ({})),
+
+static struct zmk_behavior_binding zmk_slider_keymap[ZMK_KEYMAP_LAYERS_LEN]
+                                                    [ZMK_KEYMAP_SLIDERS_LEN] = {
+                                                        DT_INST_FOREACH_CHILD(0, SLIDER_LAYER)};
+
+#endif /* ZMK_KEYMAP_HAS_SLIDERS */
+
+#if ZMK_KEYMAP_HAS_TRACKBALLS
+#define _TRANSFORM_TRACKBALL_ENTRY(idx, layer)                                                        \
+    {                                                                                              \
+        .behavior_dev = DT_LABEL(DT_PHANDLE_BY_IDX(layer, trackball_bindings, idx)),                  \
+        .param1 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, trackball_bindings, idx, param1), (0),    \
+                              (DT_PHA_BY_IDX(layer, trackball_bindings, idx, param1))),               \
+        .param2 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, trackball_bindings, idx, param2), (0),    \
+                              (DT_PHA_BY_IDX(layer, trackball_bindings, idx, param2))),               \
+        .param3 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, trackball_bindings, idx, param3), (0),    \
+                              (DT_PHA_BY_IDX(layer, trackball_bindings, idx, param3))),               \
+        .param4 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, trackball_bindings, idx, param4), (0),    \
+                              (DT_PHA_BY_IDX(layer, trackball_bindings, idx, param4))),               \
+    },
+
+#define TRACKBALL_LAYER(node)                                                                         \
+    COND_CODE_1(                                                                                   \
+        DT_NODE_HAS_PROP(node, trackball_bindings),                                                   \
+        ({UTIL_LISTIFY(DT_PROP_LEN(node, trackball_bindings), _TRANSFORM_TRACKBALL_ENTRY, node)}),       \
+        ({})),
+
+static struct zmk_behavior_binding zmk_trackball_keymap[ZMK_KEYMAP_LAYERS_LEN]
+                                                       [ZMK_KEYMAP_TRACKBALLS_LEN] = {
+                                                        DT_INST_FOREACH_CHILD(0, TRACKBALL_LAYER)};
+
+#endif /* ZMK_KEYMAP_HAS_TRACKBALLS */
+
+#if ZMK_KEYMAP_HAS_JOYSTICKS
+#define _TRANSFORM_JOYSTICK_ENTRY(idx, layer)                                                        \
+    {                                                                                              \
+        .behavior_dev = DT_LABEL(DT_PHANDLE_BY_IDX(layer, joystick_bindings, idx)),                  \
+        .param1 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, joystick_bindings, idx, param1), (0),    \
+                              (DT_PHA_BY_IDX(layer, joystick_bindings, idx, param1))),               \
+        .param2 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, joystick_bindings, idx, param2), (0),    \
+                              (DT_PHA_BY_IDX(layer, joystick_bindings, idx, param2))),               \
+        .param3 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, joystick_bindings, idx, param3), (0),    \
+                              (DT_PHA_BY_IDX(layer, joystick_bindings, idx, param3))),               \
+        .param4 = COND_CODE_0(DT_PHA_HAS_CELL_AT_IDX(layer, joystick_bindings, idx, param4), (0),    \
+                              (DT_PHA_BY_IDX(layer, joystick_bindings, idx, param4))),               \
+    },
+
+#define JOYSTICK_LAYER(node)                                                                         \
+    COND_CODE_1(                                                                                   \
+        DT_NODE_HAS_PROP(node, joystick_bindings),                                                   \
+        ({UTIL_LISTIFY(DT_PROP_LEN(node, joystick_bindings), _TRANSFORM_JOYSTICK_ENTRY, node)}),       \
+        ({})),
+
+static struct zmk_behavior_binding zmk_joystick_keymap[ZMK_KEYMAP_LAYERS_LEN]
+                                                      [ZMK_KEYMAP_JOYSTICKS_LEN] = {
+                                                      DT_INST_FOREACH_CHILD(0, JOYSTICK_LAYER)};
+
+#endif /* ZMK_KEYMAP_HAS_JOYSTICKS */
+
+static inline int set_layer_state(uint8_t layer, bool state, bool flag_event) {
     if (layer >= ZMK_KEYMAP_LAYERS_LEN) {
         return -EINVAL;
     }
@@ -93,7 +165,7 @@ static inline int set_layer_state(uint8_t layer, bool state) {
     zmk_keymap_layers_state_t old_state = _zmk_keymap_layer_state;
     WRITE_BIT(_zmk_keymap_layer_state, layer, state);
     // Don't send state changes unless there was an actual change
-    if (old_state != _zmk_keymap_layer_state) {
+    if (flag_event && (old_state != _zmk_keymap_layer_state)) {
         LOG_DBG("layer_changed: layer %d state %d", layer, state);
         ZMK_EVENT_RAISE(create_layer_state_changed(layer, state));
     }
@@ -124,9 +196,13 @@ uint8_t zmk_keymap_highest_layer_active() {
     return zmk_keymap_layer_default();
 }
 
-int zmk_keymap_layer_activate(uint8_t layer) { return set_layer_state(layer, true); };
+int zmk_keymap_layer_activate(uint8_t layer) { return set_layer_state(layer, true, true); };
 
-int zmk_keymap_layer_deactivate(uint8_t layer) { return set_layer_state(layer, false); };
+int zmk_keymap_layer_deactivate(uint8_t layer) { return set_layer_state(layer, false, true); };
+
+int zmk_keymap_layer_activate_noevent(uint8_t layer) { return set_layer_state(layer, true, false); };
+
+int zmk_keymap_layer_deactivate_noevent(uint8_t layer) { return set_layer_state(layer, false, false); };
 
 int zmk_keymap_layer_toggle(uint8_t layer) {
     if (zmk_keymap_layer_active(layer)) {
@@ -251,7 +327,7 @@ int zmk_keymap_position_state_changed(uint8_t source, uint32_t position, bool pr
 }
 
 #if ZMK_KEYMAP_HAS_SENSORS
-int zmk_keymap_sensor_triggered(uint8_t sensor_number, const struct device *sensor,
+inline static int zmk_keymap_sensor_triggered(uint8_t sensor_number, const struct sensor_value value,
                                 int64_t timestamp) {
     for (int layer = ZMK_KEYMAP_LAYERS_LEN - 1; layer >= _zmk_keymap_layer_default; layer--) {
         if (zmk_keymap_layer_active(layer) && zmk_sensor_keymap[layer] != NULL) {
@@ -269,7 +345,7 @@ int zmk_keymap_sensor_triggered(uint8_t sensor_number, const struct device *sens
                 continue;
             }
 
-            ret = behavior_sensor_keymap_binding_triggered(binding, sensor, timestamp);
+            ret = behavior_sensor_keymap_binding_triggered(binding, value, timestamp);
 
             if (ret > 0) {
                 LOG_DBG("behavior processing to continue to next layer");
@@ -288,6 +364,120 @@ int zmk_keymap_sensor_triggered(uint8_t sensor_number, const struct device *sens
 
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
 
+#if ZMK_KEYMAP_HAS_SLIDERS
+inline static int zmk_keymap_slider_triggered(uint8_t id, int16_t dx, int16_t dy, int dt,
+                                              int64_t timestamp)
+{
+    for (int layer = ZMK_KEYMAP_LAYERS_LEN - 1; layer >= _zmk_keymap_layer_default; layer--) {
+        if (zmk_keymap_layer_active(layer) && zmk_slider_keymap[layer] != NULL) {
+            struct zmk_behavior_binding *binding = &zmk_slider_keymap[layer][id];
+            const struct device *behavior;
+            int ret;
+
+            LOG_INF("layer: %d slider_id: %d, binding name: %s", layer, id,
+                    log_strdup(binding->behavior_dev));
+
+            behavior = device_get_binding(binding->behavior_dev);
+
+            if (!behavior) {
+                LOG_DBG("No behavior assigned to %d on layer %d", id, layer);
+                continue;
+            }
+
+            ret = behavior_pd_keymap_binding_triggered(binding, dx, dy, dt, timestamp);
+
+            if (ret > 0) {
+                LOG_DBG("behavior processing to continue to next layer");
+                continue;
+            } else if (ret < 0) {
+                LOG_DBG("Behavior returned error: %d", ret);
+                return ret;
+            } else {
+                return ret;
+            }
+        }
+    }
+
+    return -ENOTSUP;
+}
+#endif /* ZMK_KEYMAP_HAS_SLIDERS */
+
+#if ZMK_KEYMAP_HAS_TRACKBALLS
+inline static int zmk_keymap_trackball_triggered(uint8_t id, int16_t dx, int16_t dy, int dt,
+                                                 int64_t timestamp)
+{
+    for (int layer = ZMK_KEYMAP_LAYERS_LEN - 1; layer >= _zmk_keymap_layer_default; layer--) {
+        if (zmk_keymap_layer_active(layer) && zmk_trackball_keymap[layer] != NULL) {
+            struct zmk_behavior_binding *binding = &zmk_trackball_keymap[layer][id];
+            const struct device *behavior;
+            int ret;
+
+            LOG_INF("layer: %d slider_id: %d, binding name: %s", layer, id,
+                    log_strdup(binding->behavior_dev));
+
+            behavior = device_get_binding(binding->behavior_dev);
+
+            if (!behavior) {
+                LOG_DBG("No behavior assigned to %d on layer %d", id, layer);
+                continue;
+            }
+
+            ret = behavior_pd_keymap_binding_triggered(binding, dx, dy, dt, timestamp);
+
+            if (ret > 0) {
+                LOG_DBG("behavior processing to continue to next layer");
+                continue;
+            } else if (ret < 0) {
+                LOG_DBG("Behavior returned error: %d", ret);
+                return ret;
+            } else {
+                return ret;
+            }
+        }
+    }
+
+    return -ENOTSUP;
+}
+#endif /* ZMK_KEYMAP_HAS_TRACKBALLS */
+
+#if ZMK_KEYMAP_HAS_JOYSTICKS
+inline static int zmk_keymap_joystick_triggered(uint8_t id, int16_t dx, int16_t dy, int dt,
+                                                int64_t timestamp)
+{
+    for (int layer = ZMK_KEYMAP_LAYERS_LEN - 1; layer >= _zmk_keymap_layer_default; layer--) {
+        if (zmk_keymap_layer_active(layer) && zmk_joystick_keymap[layer] != NULL) {
+            struct zmk_behavior_binding *binding = &zmk_joystick_keymap[layer][id];
+            const struct device *behavior;
+            int ret;
+
+            LOG_INF("layer: %d slider_id: %d, binding name: %s", layer, id,
+                    log_strdup(binding->behavior_dev));
+
+            behavior = device_get_binding(binding->behavior_dev);
+
+            if (!behavior) {
+                LOG_DBG("No behavior assigned to %d on layer %d", id, layer);
+                continue;
+            }
+
+            ret = behavior_pd_keymap_binding_triggered(binding, dx, dy, dt, timestamp);
+
+            if (ret > 0) {
+                LOG_DBG("behavior processing to continue to next layer");
+                continue;
+            } else if (ret < 0) {
+                LOG_DBG("Behavior returned error: %d", ret);
+                return ret;
+            } else {
+                return ret;
+            }
+        }
+    }
+
+    return -ENOTSUP;
+}
+#endif /* ZMK_KEYMAP_HAS_JOYSTICKS */
+
 int keymap_listener(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *pos_ev;
     if ((pos_ev = as_zmk_position_state_changed(eh)) != NULL) {
@@ -298,11 +488,32 @@ int keymap_listener(const zmk_event_t *eh) {
 #if ZMK_KEYMAP_HAS_SENSORS
     const struct zmk_sensor_event *sensor_ev;
     if ((sensor_ev = as_zmk_sensor_event(eh)) != NULL) {
-        return zmk_keymap_sensor_triggered(sensor_ev->sensor_number, sensor_ev->sensor,
+        return zmk_keymap_sensor_triggered(sensor_ev->sensor_number, sensor_ev->value,
                                            sensor_ev->timestamp);
     }
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
 
+    const struct zmk_pd_raw_event *pd_ev;
+    if ((pd_ev = as_zmk_pd_raw_event(eh)) != NULL) {
+      switch (pd_ev->type) {
+#if ZMK_KEYMAP_HAS_SLIDERS
+      case SLIDER:
+        return zmk_keymap_slider_triggered(pd_ev->id, pd_ev->dx, pd_ev->dy, pd_ev->dt, pd_ev->update_time);
+#endif /* ZMK_KEYMAP_HAS_SLIDERS */
+#if ZMK_KEYMAP_HAS_TRACKBALLS
+      case TRACKBALL:
+        return zmk_keymap_trackball_triggered(pd_ev->id, pd_ev->dx, pd_ev->dy, pd_ev->dt,
+                                              pd_ev->update_time);
+#endif /* ZMK_KEYMAP_HAS_TRACKBALLS */
+#if ZMK_KEYMAP_HAS_JOYSTICKS
+      case JOYSTICK:
+        return zmk_keymap_joystick_triggered(pd_ev->id, pd_ev->dx, pd_ev->dy, pd_ev->dt,
+                                             pd_ev->update_time);
+#endif /* ZMK_KEYMAP_HAS_JOYSTICKS */
+      default:
+        break;
+      }
+    }
     return -ENOTSUP;
 }
 
@@ -312,3 +523,7 @@ ZMK_SUBSCRIPTION(keymap, zmk_position_state_changed);
 #if ZMK_KEYMAP_HAS_SENSORS
 ZMK_SUBSCRIPTION(keymap, zmk_sensor_event);
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
+
+#if defined(ZMK_KEYMAP_HAS_SLIDERS) || defined(ZMK_KEYMAP_HAS_TRACKBALLS) || defined(ZMK_KEYMAP_HAS_JOYSTICKS)
+ZMK_SUBSCRIPTION(keymap, zmk_pd_raw_event);
+#endif

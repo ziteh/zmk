@@ -13,6 +13,8 @@ struct zmk_behavior_binding {
     char *behavior_dev;
     uint32_t param1;
     uint32_t param2;
+    uint32_t param3;
+    uint32_t param4;
 };
 
 struct zmk_behavior_binding_event {
