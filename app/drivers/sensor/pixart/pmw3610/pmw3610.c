@@ -909,6 +909,14 @@ static int pmw3610_sample_fetch(const struct device *dev, enum sensor_channel ch
 			data->y = x;
 		}
 
+    if(IS_ENABLED(CONFIG_PMW3610_INVERT_X)) {
+			data->x = -data->x;
+    }
+
+    if(IS_ENABLED(CONFIG_PMW3610_INVERT_Y)) {
+			data->y = -data->y;
+    }
+
 #ifdef CONFIG_PMW3610_SMART_ALGORITHM
     int16_t shutter = ((int16_t)(buf[PMW3610_SHUTTER_H_POS] & 0x01) << 8)
                       + buf[PMW3610_SHUTTER_L_POS];
