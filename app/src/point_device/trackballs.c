@@ -14,6 +14,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/pd_raw_event.h>
 #include <zmk/events/endpoint_selection_changed.h>
+#include <sys/atomic.h>
 
 #if ZMK_KEYMAP_HAS_TRACKBALLS
 
@@ -64,10 +65,24 @@ void zmk_trackballs_process_msgq(struct k_work *work) {
 
 K_WORK_DEFINE(zmk_trackballs_msgq_work, zmk_trackballs_process_msgq);
 
+ATOMIC_DEFINE(timer_set_bit, 1);
+
+void deactivate_mouse_layer(struct k_timer *timer) {
+    zmk_keymap_layer_deactivate(CONFIG_MOUSE_LAYER_INDEX);
+    atomic_clear_bit(timer_set_bit, 1);
+}
+
+K_TIMER_DEFINE(mouse_layer_timer, deactivate_mouse_layer, NULL);
+
 // polling work
 static void zmk_trackballs_poll_handler(struct k_work *work) {
 	struct trackballs_data_item *item = CONTAINER_OF(work, struct trackballs_data_item, poll_work);
   const struct device *dev = item->dev;
+
+  if (!atomic_test_and_set_bit(timer_set_bit, 1)) {
+    zmk_keymap_layer_activate(CONFIG_MOUSE_LAYER_INDEX);
+    k_timer_start(&mouse_layer_timer, K_MSEC(CONFIG_MOUSE_LAYER_ACTIVE_MS), K_NO_WAIT);
+  }
 
   // fetch dx and dy from sensor and save them into pixart_data structure
   int ret = sensor_sample_fetch(dev);
