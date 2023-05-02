@@ -18,6 +18,7 @@
 							RC(3,3) RC(3,4) RC(3,1)  RC(3,7)  RC(3,9)
         >;
     };
+
     five_column_transform: keymap_transform_1 {
         compatible = "zmk,matrix-transform";
         columns = <10>;
@@ -30,6 +31,7 @@
 					RC(3,3) RC(3,4) RC(3,1)  RC(3,7)  RC(3,9)
         >;
     };
+
     kscan0: kscan {
         compatible = "zmk,kscan-gpio-matrix";
         label = "KSCAN";
