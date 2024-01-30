@@ -1,0 +1,12 @@
+file_format: "1"
+id: ergosnm
+name: Ergosnm
+type: shield
+url: https://github.com/siderakb/ergo-snm-keyboard/
+requires: [pro_micro]
+features:
+  - keys
+  - pointer
+siblings:
+  - ergosnm_left
+  - ergosnm_right
