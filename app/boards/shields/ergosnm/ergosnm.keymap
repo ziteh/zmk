@@ -16,39 +16,11 @@
     &kp TAB     &kp Q       &kp W      &kp E        &kp R    &kp T                  &kp Y    &kp U       &kp I      &kp O      &kp P      &kp BSPC
     &kp LCTRL   &kp A       &kp S      &kp D        &kp F    &kp G                  &kp H    &kp J       &kp K      &kp L      &kp SEMI   &kp ENTER
     &kp LSHFT   &kp Z       &kp X      &kp C        &kp V    &kp B                  &kp N    &kp M       &kp COMMA  &kp DOT    &kp FSLH   &kp RSHIFT
-    &kp PG_UP   &kp PG_DN   &kp LALT   &kp LGUI     &mo 1                                 &mo 2    &kp RALT   &kp K_APP  &kp INS    &kp RSHIFT
+    &kp PG_UP   &kp PG_DN   &kp LALT   &kp LGUI     &kp LGUI                                 &kp LGUI    &kp RALT   &kp K_APP  &kp INS    &kp RSHIFT
                                                              &kp ENTER &kp LBKT &kp RBKT
                                                              &kp SPACE &kp UP   &kp DOWN
             >;
             trackball-bindings = <&tmv_coarse>;
-        };
-
-        Lower {
-            label = "Lower";
-            bindings = <
-    &kp ESC     &kp F1      &kp F2     &kp F3       &kp F4   &kp F5                 &kp F6   &kp F7      &kp F8     &kp F9     &kp F0     &kp BSLH
-    &kp TAB     &kp Q       &kp W      &kp E        &kp R    &kp T                  &kp Y    &kp U       &kp I      &kp O      &kp P      &kp BSPC
-    &kp LCTRL   &kp A       &kp S      &kp D        &kp F    &kp G                  &kp H    &kp J       &kp K      &kp L      &kp SEMI   &kp ENTER
-    &kp LSHFT   &kp Z       &kp X      &kp C        &kp V    &kp B                  &kp N    &kp M       &kp COMMA  &kp DOT    &kp FSLH   &kp RSHIFT
-    &kp PG_UP   &kp PG_DN   &kp LALT   &kp LGUI     &trans                                 &trans    &kp RALT   &kp K_APP  &kp INS    &kp RSHIFT
-                                                             &kp ENTER &kp LBKT &kp RBKT
-                                                             &kp SPACE &kp UP   &kp DOWN
-            >;
-            trackball-bindings = <&tmv_fine>;
-        };
-
-        Raise {
-            label = "Raise";
-            bindings = <
-    &trans     &kp N1      &kp N2     &kp N3       &kp N4   &kp N5                 &kp N6   &kp N7      &kp N8     &kp N9     &kp N0     &kp BSLH
-    &kp TAB     &kp Q       &kp W      &kp E        &kp R    &kp T                  &kp Y    &kp U       &kp I      &kp O      &kp P      &kp BSPC
-    &kp LCTRL   &kp A       &kp S      &kp D        &kp F    &kp G                  &kp H    &kp J       &kp K      &kp L      &kp SEMI   &kp ENTER
-    &kp LSHFT   &kp Z       &kp X      &kp C        &kp V    &kp B                  &kp N    &kp M       &kp COMMA  &kp DOT    &kp FSLH   &kp RSHIFT
-    &kp PG_UP   &kp PG_DN   &kp LALT   &kp LGUI     &trans                                 &trans    &kp RALT   &kp K_APP  &kp INS    &kp RSHIFT
-                                                             &kp ENTER &kp LBKT &kp RBKT
-                                                             &kp SPACE &kp UP   &kp DOWN
-            >;
-            trackball-bindings = <&tsl_fine>;
         };
     };
 };
