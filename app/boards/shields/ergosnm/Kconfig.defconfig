@@ -1,7 +1,7 @@
 if SHIELD_ERGOSNM_RIGHT
 
 config ZMK_KEYBOARD_NAME
-	default "SideraKB ErgoSNM v3"
+	default "ErgoSNM v3"
 
 config ZMK_SPLIT_BLE_ROLE_CENTRAL
 	default y
