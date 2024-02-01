@@ -15,6 +15,7 @@
 		, <&gpio0  3 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
 		, <&gpio0 28 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
 		, <&gpio1 04 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
+		, <&gpio0 13 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>
 		;
 
 	row-gpios
