@@ -1,7 +1,7 @@
 if SHIELD_ERGOSNM_RIGHT
 
 config ZMK_KEYBOARD_NAME
-	default "ErgoSNM v3"
+	default "ErgoSNM 3.0"
 
 config ZMK_SPLIT_BLE_ROLE_CENTRAL
 	default y
